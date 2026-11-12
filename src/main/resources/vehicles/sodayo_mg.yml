@@ -1,0 +1,39 @@
+id: sodayo_mg
+display-name: "<gold>Sodayo Gun Truck"
+class: wheeled
+model: sodayo_mg
+physics:
+  mass: 2600
+  engine-power: 200
+  max-speed: 22
+  reverse-speed: 8
+  turn-rate: 3.0
+  step-height: 0.6
+  grip: 0.36
+  gears: [6, 11, 16, 22]
+health: 300
+armor: { front: 5, side: 4, rear: 3, top: 2 }
+fuel: { capacity: 90, consumption: 0.32 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver }
+  - { name: passenger, locator: seat_passenger, role: passenger }
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [hmg], exposed: true }
+weapons:
+  hmg:
+    type: mg
+    display-name: "Heavy MG"
+    muzzle: [muzzle_1]
+    damage: 9
+    penetration: 12
+    rpm: 450
+    spread: 1.2
+    magazine: 100
+    ammo: 800
+    reload: 5
+    velocity: 12
+    range: 160
+    traverse-speed: 120
+    pitch-min: -12
+    pitch-max: 55
+    turret-bone: turret
+    gun-bone: gun

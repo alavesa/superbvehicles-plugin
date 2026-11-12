@@ -1,0 +1,51 @@
+id: plz05
+display-name: "<gold>PLZ-05 Self-propelled Howitzer"
+class: tracked
+model: plz05
+physics:
+  mass: 35000
+  engine-power: 800
+  max-speed: 11
+  reverse-speed: 4
+  turn-rate: 1.6
+  step-height: 1.1
+  neutral-turn-rate: 24
+  grip: 0.55
+health: 1600
+armor: { front: 50, side: 35, rear: 25, top: 15, bottom: 20 }
+fuel: { capacity: 300, consumption: 0.8 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver }
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [howitzer, roof_mg] }
+  - { name: loader, locator: seat_loader, role: passenger }
+weapons:
+  howitzer:
+    type: mortar
+    display-name: "155 mm Howitzer"
+    muzzle: [muzzle_1]
+    mortar-angle: 50
+    damage: 200
+    penetration: 80
+    splash: 7
+    splash-damage: 160
+    explosion-power: 4.5
+    velocity: 6
+    gravity: 0.05
+    rpm: 6
+    magazine: 1
+    ammo: 20
+    reload: 9
+    recoil: 0.4
+    block-damage: true
+    lifetime: 20
+    traverse-speed: 25
+    pitch-min: 0
+    pitch-max: 65
+  roof_mg:
+    type: mg
+    display-name: "Roof MG"
+    muzzle: [muzzle_1]
+    damage: 7
+    rpm: 600
+    magazine: 200
+    ammo: 800

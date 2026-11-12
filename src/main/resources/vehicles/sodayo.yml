@@ -1,0 +1,27 @@
+id: sodayo
+display-name: "<gold>Sodayo Pickup"
+class: wheeled
+model: sodayo
+physics:
+  mass: 2200
+  engine-power: 200
+  max-speed: 24
+  reverse-speed: 8
+  turn-rate: 3.2
+  step-height: 0.6
+  grip: 0.38
+  gears: [6, 11, 17, 24]
+  idle-rpm: 800
+  max-rpm: 5500
+health: 260
+armor: { front: 4, side: 3, rear: 3, top: 2 }
+fuel: { capacity: 90, consumption: 0.3 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver }
+  - { name: passenger, locator: seat_passenger, role: passenger }
+  - { name: rear_left, locator: seat_rear_left, role: passenger, exposed: true }
+  - { name: rear_right, locator: seat_rear_right, role: passenger, exposed: true }
+textures:
+  desert: { sodayo: sodayo_desert.png }   # optional skin: put the png into models/skins/
+sounds:
+  engine: minecraft:entity.minecart.riding

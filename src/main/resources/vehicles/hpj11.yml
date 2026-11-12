@@ -1,0 +1,28 @@
+id: hpj11
+display-name: "<gold>HPJ-11 Close-in Weapon System"
+class: static
+model: hpj11
+health: 600
+armor: { front: 25, side: 20, rear: 15, top: 10 }
+fuel: { capacity: 0 }
+seats:
+  - { name: operator, locator: seat_operator, role: gunner, weapons: [ciws] }
+weapons:
+  ciws:
+    type: ciws
+    display-name: "CIWS"
+    muzzle: [muzzle_1]
+    auto-target: true          # fires on its own at incoming rounds and aircraft; an operator may take over
+    damage: 12
+    penetration: 15
+    rpm: 1200
+    spread: 1.0
+    magazine: 400
+    ammo: 2400
+    reload: 10
+    velocity: 16
+    range: 100
+    destroys-projectiles: true
+    traverse-speed: 220
+    pitch-min: -10
+    pitch-max: 85

@@ -1,0 +1,39 @@
+id: speedboat
+display-name: "<aqua>Speedboat"
+class: boat
+model: speedboat
+physics:
+  mass: 1400
+  engine-power: 240
+  max-speed: 22
+  reverse-speed: 5
+  turn-rate: 2.6
+  draft: 0.45
+  buoyancy: 0.14
+  water-drag: 0.018
+  planing-speed: 9
+  planing-pitch: 7
+  rudder: 1.1
+  grip: 0.12
+health: 320
+armor: { front: 3, side: 2, rear: 2, top: 1 }
+fuel: { capacity: 80, consumption: 0.35 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver, exposed: true }
+  - { name: passenger, locator: seat_passenger, role: passenger, exposed: true }
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [bow_mg], exposed: true }
+  - { name: rear, locator: seat_rear, role: passenger, exposed: true }
+weapons:
+  bow_mg:
+    type: mg
+    display-name: "Bow MG"
+    muzzle: [muzzle_1]
+    damage: 7
+    rpm: 550
+    magazine: 150
+    ammo: 900
+    traverse-speed: 140
+    yaw-min: -110
+    yaw-max: 110
+sounds:
+  engine: minecraft:entity.boat.paddle_water

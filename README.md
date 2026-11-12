@@ -1,0 +1,168 @@
+# SuperbVehicles
+
+Data-driven vehicles for Paper 26.x: wheeled, tracked, boats, helicopters, planes and static emplacements with
+mounted weapons, damage and armour, fuel, ammunition, seats, HUD and sounds. A vehicle is one YAML file plus one
+Blockbench `.bbmodel` (and optional textures / sounds) - no Java. The plugin converts the models into a resource pack,
+hosts it and sends it to players; vanilla clients only.
+
+Clean room: no code, models, textures or sounds of any mod are used. The shipped models are procedurally generated
+placeholders that follow the bone naming convention, so modellers can open them in Blockbench and replace the boxes.
+
+## Install
+
+1. Paper 26.2 or 26.3 (tested on 26.3), Java 21+.
+2. Drop `SuperbVehicles-<version>.jar` into `plugins/`, start the server once. The plugin writes
+   `plugins/SuperbVehicles/` with `config.yml`, `messages.yml`, `vehicles/*.yml` (the roster), `models/*.bbmodel`
+   (placeholders), and builds `pack/SuperbVehicles-pack.zip` (+ `.sha1`, `pack-report.txt`).
+3. The pack is served on the Minecraft port itself (`pack.host.mode: same-port`, nothing to open) and sent to every
+   player on join, added to whatever packs the server already sends. Behind a Velocity/Bungee proxy use
+   `pack.host.mode: self` (own port) or `url` (host the zip yourself), or `folder` to merge the assets into an existing
+   pack folder that another plugin hosts.
+4. `/sbv give truck` and right-click the ground.
+
+Permissions: `superbvehicles.admin` (all commands), `superbvehicles.use.<id>` (enter), `superbvehicles.spawn.<id>`
+(place the item). `superbvehicles.use.*` / `.spawn.*` default to true.
+
+## Commands
+
+`/sbv give <type> [player] [amount]`, `spawn <type> [x y z]`, `remove [radius]`, `removeall [type]`, `list`, `info`,
+`repair [amount]`, `refuel [amount]`, `ammo`, `skin <name>`, `lock`, `unlock`, `tp <id>`, `seat <n>`, `reload`,
+`pack [rebuild|send|url]`, `import <file.bbmodel>`, `item fuel|ammo|repair`,
+`debug hitboxes|physics|seats|perf`. Aliases `/superbvehicles`, `/vehicle`. Tab completion everywhere.
+
+## Controls
+
+Right-click a vehicle to take the nearest free seat (the driver's first); right-click another seat box while seated
+to switch, or `/sbv seat <n>`. Sneak leaves (ground vehicles below `seats.dismount-speed`, aircraft only when landed;
+double-tap sneak in the air bails out with slow falling). Keys are configurable per class under `controls:`.
+
+| Class | W / S | A / D | Space | Ctrl (sprint) | F (swap hands) | Mouse |
+|---|---|---|---|---|---|---|
+| wheeled | throttle / brake-reverse | steer | handbrake (drift) | fire (driver weapons) | engine on/off | - |
+| tracked | throttle / brake-reverse | differential steer (neutral turn when stopped) | handbrake | fire | engine | - |
+| boat | throttle / reverse | rudder | - | fire | engine | - |
+| helicopter | collective up / down | pedals (yaw) | fire | countermeasure | engine (spool-up) | cyclic: look down = nose down and forward, look left/right = bank |
+| plane | throttle up / down | rudder (nose wheel on the ground) | fire | airbrake | landing gear | pitch follows the look pitch, bank follows the look yaw and turns the aircraft; flaps are automatic below `flap-speed` with the gear down |
+| static | - | - | fire | alt | - | aim |
+| gunner seat | - | - | fire (hold for automatic) | alt fire | countermeasure | aim; hotbar 1-9 selects the seat's weapons |
+
+Guided weapons: `wire` / `laser` steer toward the gunner's aim point, `lock` needs a lock (hold the target in the
+lock cone for `lock-time`; the target sees a LOCK warning and may pop flares). The engine starts on the first
+throttle press (`physics.auto-start`) and stops when the vehicle sits empty for a while.
+
+## Adding a vehicle in 5 minutes
+
+1. Copy `vehicles/sodayo.yml` to `vehicles/myjeep.yml`, change `id`, `display-name`, `model: myjeep`, numbers.
+2. In Blockbench (Free / Generic model): build it in pixels, 16 px = 1 block, the origin (0,0,0) on the ground under
+   the centre, the nose pointing NORTH (-Z). Name groups by the convention below; add locators `seat_driver`,
+   `seat_<name>` for every seat in the YAML, `muzzle_1`... for weapons, `wheel_fl`... at wheel centres.
+3. Save as `models/myjeep.bbmodel` (textures embedded - Blockbench does that on save).
+4. `/sbv reload` (or `/sbv pack rebuild`): the pack is rebuilt in the background and re-sent. `pack-report.txt`
+   lists every model's parts, locators and warnings.
+5. `/sbv give myjeep`.
+
+### Bone naming convention (overridable per vehicle under `bones:`)
+
+| Group name | Behaviour |
+|---|---|
+| `root`, `body` | static hull (everything unnamed folds into the nearest named ancestor) |
+| `wheel_*` (`wheel_fl`, `wheel_rr`, `wheel_m1`...) | spins with speed; `wheel_f*` / `wheel_steer*` also steer |
+| `track_l`, `track_r` | track belts: creep with their side's speed |
+| `turret` | yaws toward the gunner's aim; `gun` / `barrel` pitches (a weapon may name other bones with `turret-bone` / `gun-bone`) |
+| `rotor_main`, `rotor_tail`, `propeller` | spin with the engine |
+| `gear_*` | fold when the gear is raised (planes) |
+| `flap_*`, `aileron_*`, `elevator`, `rudder`, `steer` | control surfaces / steering wheel |
+| `dmg1_*`, `dmg2_*` | shown below 66% / 33% health; `intact_*` hidden when damaged; `wreck_*` shown when destroyed |
+| `hitbox_*` | invisible box(es) defining the collision hull (else the model bounds) |
+| locators `seat_*`, `muzzle_*`, `exhaust`, `wheel_*` | seats, muzzles, exhaust smoke, wheel centres |
+
+Any group an animation moves also becomes a part of its own. Animations: a clip named like the physics state plays
+in a loop - `idle`, `drive`, `reverse`, `left`, `right`, `start`, `hover`, `ascend`, `descend`, `fly`, `stall`,
+`wreck` - or map names under `animations: {drive: my_clip}`. Linear, Catmull-Rom, step and bezier keyframes, numeric
+values only (no Molang), Blockbench 4.x and 5 files. Rotations: Java cubes can only turn one axis at 22.5-degree steps,
+so a cube rotated otherwise gets a display part of its own (exact, no snapping) - just more entities. Meshes are
+replaced by their bounding boxes. Groups farther than ~24 px from their pivot are written smaller and scaled back up
+(blurrier textures) - split big groups.
+
+### Skins
+
+```yaml
+textures:
+  desert: { body: truck_desert.png }   # texture name in the bbmodel -> file in models/skins/
+  night: { "*": truck_night.png }       # replaces every texture
+```
+`/sbv skin desert` on a vehicle; also saved per vehicle.
+
+### Sounds
+
+Put `.ogg` files into `models/sounds/`; they become `superbvehicles:<name>` and can be used in `sounds:` of a vehicle
+(`engine`, `start`, `stop`, `crash`, `horn`) or any weapon `sound` / `hit-sound` / `reload-sound`. The engine sound is
+replayed every `sounds.engine-interval-ticks` with a pitch that follows the RPM, so use a short loopable clip.
+
+### YAML reference
+
+See the shipped `vehicles/*.yml` for every class. Physics keys are documented in the Javadoc of
+`physics/WheeledPhysics`, `TrackedPhysics`, `BoatPhysics`, `HelicopterPhysics`, `PlanePhysics`; weapon keys in
+`weapon/WeaponType`; the common keys (`class`, `model`, `model-yaw`, `scale`, `health`, `armor`, `fuel`, `seats`,
+`weapons`, `bones`, `hide-groups`, `animations`, `sounds`, `textures`, `hitbox`, `hitzones`, `lockable`,
+`invulnerable`, `wreck-seconds`, `explosion-power`) in `core/VehicleType`.
+
+## Architecture
+
+```
+bbmodel/   BbParser (Blockbench 4/5 -> BbModel), Track (keyframe sampling), BoneRole (naming convention), Rig (runtime bone matrices)
+pack/      CompositeBuilder (bbmodel -> one item model per animatable bone), PackBuilder (zip, icons, sounds.json, HUD font),
+           PlaceholderModels (procedural .bbmodel templates), PackHost (same-port | self | url | folder delivery), Mat
+compat/    SamePortHttp - the only reflection/netty code (serves the zip on the Minecraft port)
+render/    Pose (vehicle frame), VehicleRenderer (ItemDisplay parts riding a marker stand, changed transforms only),
+           AnimationPlayer (state clips, crossfade, one-shots), Procedural (wheels, turret, rotors, gear, flaps, damage states)
+physics/   Obb + BlockCollider (own hull-vs-block sweep with stepping), Wheeled/Tracked/Boat/Helicopter/Plane/Static models
+core/      VehicleType (YAML), Vehicle (instance), VehicleManager (tick loop, lookups, chunks), Persistence, Items, Messages
+seat/      SeatManager (enter/exit/switch, dismount rules, bail-out), InputListener (PlayerInputEvent, hotbar, F, Q, clicks)
+weapon/    WeaponType, MountedWeapon (aim, ammo, reload, lock), Projectile (simulated rounds, guidance), ProjectileManager
+damage/    DamageModel (zones, armour, fire, wreck), DamageListener (melee, arrows, explosions)
+hud/       HudManager (action bar, boss bar, glyph bars, lock warning)
+command/   SbvCommand (Brigadier)
+api/       SuperbVehiclesAPI + events (Spawn, Enter, Exit, Damage, Destroy, WeaponFire, MissileLock)
+```
+
+Paper APIs used (all present in 26.2 and 26.3): `ItemDisplay`/`Interaction`/`ArmorStand` entities,
+`PlayerInputEvent`, `ItemMeta#setItemModel` (the `item_model` component), `Player#sendResourcePacks`, Brigadier via
+`LifecycleEvents.COMMANDS`, global-region and async schedulers, `TeleportFlag.EntityState.RETAIN_PASSENGERS`.
+
+Rendering: the root is an invisible marker armour stand at the vehicle position; every rig part is an `ItemDisplay`
+riding it whose transformation is `R_vehicle * M_bone` (translation in blocks, rotation as a quaternion, scale per
+axis), re-sent only when it changed, interpolated by the client over `render.interpolation-ticks`. Seats are marker
+stands teleported each tick (riders sit on them) with an `Interaction` click box each; one more `Interaction` covers
+the hull for clicks and vanilla hits. All entities are non-persistent; `data/vehicles.yml` restores vehicles.
+
+Performance: one vehicle costs about 0.01 ms per tick on the test machine (`/sbv debug perf`); the pack build runs
+off the main thread; projectiles are capped (`weapons.max-projectiles`).
+
+## Build
+
+Maven (used here, offline-capable): `mvn package` -> `target/SuperbVehicles-<version>.jar`. The Gradle Kotlin DSL
+build (`build.gradle.kts`) mirrors the pom but has not been run on the author's machine. `GenerateRoster` (test
+sources) regenerates the shipped placeholder models and `defaults-index.txt`.
+
+## Troubleshooting
+
+* **Purple/black or missing bodies**: the pack is not applied. Check `/sbv pack` (sha1, host status), the client log
+  for "Error reading pack metadata" (pack format below 65 is rejected by 26.x clients - never lower `pack.min-format`),
+  and that the server address players use can reach the pack (`pack.host.address`). Behind a proxy use `self` or `url`.
+* **"no models/<name>.bbmodel - a placeholder was generated"**: the YAML `model:` does not match a file in `models/`
+  (case matters).
+* **Parts float / drive backwards**: `model-yaw` (180 = nose at Blockbench north) or the group pivots; see
+  `pack-report.txt` warnings and `/sbv debug hitboxes|seats`.
+* **Riders sit too high/low**: `seats.rider-offset`; parts offset vertically: `render.passenger-offset`.
+* **Vehicle not restored after restart**: `data/vehicles.yml` is saved every `persistence.save-interval-seconds` and on
+  stop; a killed server loses the last interval.
+
+## Known limitations
+
+* Blockbench meshes become boxes; textures of groups far from their pivot are written at reduced size.
+* No per-player view models or first-person effects; the hand-held item is the vanilla one.
+* Same-port pack hosting does not work behind Velocity/Bungee (use `self`/`url`/`folder`).
+* Folia: schedulers are the region-aware ones, but the tick loop moves entities across regions and was not tested on Folia.
+* Rendering, seat placement, driving feel and all HUD/visuals were verified only as far as noted in the delivery
+  message; everything else was verified headless (boot, commands, persistence, pack build, unit tests).

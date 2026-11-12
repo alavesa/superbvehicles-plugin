@@ -1,0 +1,34 @@
+id: annihilator
+display-name: "<dark_red>Annihilator"
+class: static
+model: annihilator
+health: 2500
+armor: { front: 150, side: 100, rear: 60, top: 40 }
+fuel: { capacity: 0 }
+seats:
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [railgun] }
+  - { name: spotter, locator: seat_spotter, role: passenger }
+weapons:
+  railgun:
+    type: cannon
+    display-name: "Railgun"
+    ammo-type: AP
+    muzzle: [muzzle_1]
+    damage: 600
+    penetration: 900
+    splash: 4
+    splash-damage: 120
+    explosion-power: 3
+    velocity: 40
+    gravity: 0.002
+    rpm: 3
+    magazine: 1
+    ammo: 12
+    reload: 18
+    recoil: 0.6
+    block-damage: true
+    trail: ELECTRIC_SPARK
+    sound: minecraft:entity.lightning_bolt.thunder
+    traverse-speed: 20
+    pitch-min: -5
+    pitch-max: 40

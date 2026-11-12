@@ -1,0 +1,103 @@
+id: mi28
+display-name: "<gold>Mi-28 Attack Helicopter"
+class: helicopter
+model: mi28
+physics:
+  mass: 8600
+  engine-power: 600
+  max-speed: 30
+  turn-rate: 2.6
+  lift: 8
+  descent: 7
+  spool-time: 5
+  cyclic-angle: 20
+  cyclic-gain: 0.9
+  cyclic-thrust: 2.2
+  torque: 0.1
+  auto-stabilise: true
+  ground-effect: 0.12
+  autorotation-descent: 7
+  rotor-speed: 36
+  air-drag: 0.022
+health: 900
+armor: { front: 30, side: 18, rear: 12, top: 8, bottom: 20 }
+fuel: { capacity: 220, consumption: 0.8 }
+seats:
+  - { name: pilot, locator: seat_pilot, role: driver, weapons: [rockets, flares] }
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [chin_gun, atgm, flares] }
+weapons:
+  chin_gun:
+    type: autocannon
+    display-name: "30 mm Chin Gun"
+    muzzle: [muzzle_chin]
+    damage: 26
+    penetration: 50
+    rpm: 300
+    spread: 0.9
+    magazine: 60
+    ammo: 300
+    reload: 5
+    velocity: 15
+    splash: 1.2
+    splash-damage: 10
+    block-damage: false
+    traverse-speed: 90
+    yaw-min: -110
+    yaw-max: 110
+    pitch-min: -40
+    pitch-max: 15
+    turret-bone: gun
+    gun-bone: gun
+  atgm:
+    type: missile
+    display-name: "Anti-tank Missiles"
+    guidance: lock_laser
+    muzzle: [muzzle_atgm_l, muzzle_atgm_r]
+    damage: 260
+    penetration: 320
+    splash: 3.5
+    explosion-power: 2.5
+    velocity: 4
+    turn-rate: 6
+    lock-time: 1.8
+    lock-range: 200
+    lock-cone: 10
+    rpm: 12
+    magazine: 2
+    ammo: 8
+    reload: 8
+    lifetime: 16
+    traverse-speed: 0
+    yaw-min: 0
+    yaw-max: 0
+    pitch-min: 0
+    pitch-max: 0
+  rockets:
+    type: rocket
+    display-name: "Rocket Pods"
+    muzzle: [muzzle_pod_l, muzzle_pod_r]
+    damage: 55
+    penetration: 45
+    splash: 3.2
+    splash-damage: 45
+    explosion-power: 2
+    velocity: 6
+    rpm: 120
+    magazine: 20
+    ammo: 40
+    reload: 12
+    block-damage: true
+    traverse-speed: 0
+    yaw-min: 0
+    yaw-max: 0
+    pitch-min: 0
+    pitch-max: 0
+  flares:
+    type: flare
+    display-name: "Flares"
+    ammo: 12
+    magazine: 12
+    flare-ticks: 90
+    cooldown-ticks: 60
+sounds:
+  engine: minecraft:entity.ender_dragon.flap

@@ -1,0 +1,88 @@
+id: a10
+display-name: "<gold>A-10 Attack Aircraft"
+class: plane
+model: a10
+physics:
+  mass: 11000
+  engine-power: 1400
+  max-speed: 70
+  turn-rate: 1.8
+  stall-speed: 18
+  min-takeoff-speed: 22
+  lift: 1.1
+  pitch-rate: 2.2
+  roll-rate: 3.6
+  flap-speed: 30
+  airbrake-drag: 0.005
+  throttle-step: 0.015
+  drag: 0.0016
+  alignment: 0.08
+  turn-gain: 1.0
+health: 700
+armor: { front: 20, side: 12, rear: 10, top: 6, bottom: 25 }
+fuel: { capacity: 300, consumption: 1.0 }
+seats:
+  - { name: pilot, locator: seat_pilot, role: driver, weapons: [cannon, bombs, missiles, flares] }
+weapons:
+  cannon:
+    type: autocannon
+    display-name: "30 mm Rotary Cannon"
+    muzzle: [muzzle_cannon]
+    damage: 30
+    penetration: 60
+    rpm: 900
+    spread: 0.6
+    magazine: 150
+    ammo: 1150
+    reload: 8
+    velocity: 16
+    splash: 1.2
+    splash-damage: 12
+    block-damage: false
+    traverse-speed: 0
+    yaw-min: 0
+    yaw-max: 0
+    pitch-min: 0
+    pitch-max: 0
+  bombs:
+    type: bomb
+    display-name: "Bombs"
+    muzzle: [muzzle_bomb_l, muzzle_bomb_r]
+    damage: 260
+    penetration: 80
+    splash: 8
+    splash-damage: 200
+    explosion-power: 5
+    rpm: 60
+    magazine: 6
+    ammo: 6
+    reload: 0
+    block-damage: true
+  missiles:
+    type: missile
+    display-name: "Guided Missiles"
+    guidance: lock
+    muzzle: [muzzle_msl_l, muzzle_msl_r]
+    damage: 200
+    penetration: 250
+    splash: 3
+    explosion-power: 2.5
+    velocity: 5
+    turn-rate: 7
+    lock-time: 1.5
+    lock-range: 220
+    lock-cone: 12
+    rpm: 20
+    magazine: 2
+    ammo: 4
+    reload: 0
+    lifetime: 14
+  flares:
+    type: flare
+    display-name: "Flares"
+    ammo: 10
+    magazine: 10
+    flare-ticks: 90
+    cooldown-ticks: 60
+sounds:
+  engine: minecraft:entity.phantom.flap

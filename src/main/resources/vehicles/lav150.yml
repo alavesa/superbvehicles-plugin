@@ -1,0 +1,54 @@
+id: lav150
+display-name: "<gold>LAV-150 Armoured Car"
+class: wheeled
+model: lav150
+physics:
+  mass: 9800
+  engine-power: 320
+  max-speed: 20
+  reverse-speed: 7
+  turn-rate: 2.6
+  step-height: 0.8
+  grip: 0.4
+  gears: [5, 9, 14, 20]
+  idle-rpm: 700
+  max-rpm: 3400
+health: 900
+armor: { front: 45, side: 30, rear: 20, top: 12, bottom: 15 }
+fuel: { capacity: 180, consumption: 0.4 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver }
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [autocannon, coax] }
+  - { name: commander, locator: seat_commander, role: copilot }
+  - { name: troop1, locator: seat_troop1, role: passenger }
+  - { name: troop2, locator: seat_troop2, role: passenger }
+weapons:
+  autocannon:
+    type: autocannon
+    display-name: "20 mm Autocannon"
+    muzzle: [muzzle_1]
+    damage: 22
+    penetration: 40
+    rpm: 240
+    spread: 0.7
+    magazine: 40
+    ammo: 400
+    reload: 4
+    velocity: 14
+    splash: 1.2
+    splash-damage: 8
+    block-damage: false
+    recoil: 0.03
+    traverse-speed: 70
+    pitch-min: -8
+    pitch-max: 45
+  coax:
+    type: mg
+    display-name: "Coaxial MG"
+    muzzle: [muzzle_1]
+    damage: 7
+    penetration: 10
+    rpm: 600
+    magazine: 200
+    ammo: 1600
+    traverse-speed: 70

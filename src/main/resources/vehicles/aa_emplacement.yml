@@ -1,0 +1,50 @@
+id: aa_emplacement
+display-name: "<gold>AA Emplacement"
+class: static
+model: aa_emplacement
+health: 400
+armor: { front: 15, side: 10, rear: 6, top: 4 }
+fuel: { capacity: 0 }
+seats:
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [twin_cannon, sam], exposed: true }
+weapons:
+  twin_cannon:
+    type: autocannon
+    display-name: "Twin 23 mm"
+    muzzle: [muzzle_1, muzzle_2]
+    damage: 20
+    penetration: 30
+    rpm: 400
+    spread: 1.0
+    magazine: 80
+    ammo: 800
+    reload: 6
+    velocity: 15
+    splash: 1.5
+    splash-damage: 12
+    block-damage: false
+    traverse-speed: 150
+    pitch-min: -5
+    pitch-max: 85
+  sam:
+    type: missile
+    display-name: "Anti-air Missiles"
+    guidance: lock
+    muzzle: [muzzle_sam]
+    damage: 180
+    penetration: 120
+    splash: 4
+    explosion-power: 2
+    velocity: 6
+    turn-rate: 9
+    lock-time: 1.2
+    lock-range: 200
+    lock-cone: 15
+    rpm: 20
+    magazine: 2
+    ammo: 8
+    reload: 8
+    lifetime: 12
+    traverse-speed: 150
+    pitch-min: 0
+    pitch-max: 85

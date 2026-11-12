@@ -1,0 +1,34 @@
+id: waveforce_tower
+display-name: "<gold>Waveforce Tower"
+class: static
+model: waveforce_tower
+health: 900
+armor: { front: 30, side: 30, rear: 30, top: 15 }
+fuel: { capacity: 0 }
+seats:
+  - { name: operator, locator: seat_operator, role: gunner, weapons: [pulse] }
+weapons:
+  pulse:
+    type: cannon
+    display-name: "Pulse Cannon"
+    muzzle: [muzzle_1]
+    damage: 90
+    penetration: 40
+    splash: 6
+    splash-damage: 70
+    explosion-power: 0            # no crater: a blast of force
+    velocity: 9
+    gravity: 0.005
+    rpm: 20
+    spread: 0.5
+    magazine: 6
+    ammo: 60
+    reload: 6
+    block-damage: false
+    trail: SONIC_BOOM
+    particle: SONIC_BOOM
+    sound: minecraft:entity.warden.sonic_boom
+    hit-sound: minecraft:entity.warden.sonic_charge
+    traverse-speed: 120
+    pitch-min: -15
+    pitch-max: 75

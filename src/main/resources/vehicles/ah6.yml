@@ -1,0 +1,74 @@
+id: ah6
+display-name: "<gold>AH-6 Light Helicopter"
+class: helicopter
+model: ah6
+physics:
+  mass: 1600
+  engine-power: 260
+  max-speed: 34
+  turn-rate: 3.5
+  lift: 9
+  descent: 7
+  spool-time: 3
+  cyclic-angle: 24
+  cyclic-gain: 1.0
+  cyclic-thrust: 2.4
+  torque: 0.12
+  auto-stabilise: true
+  ground-effect: 0.15
+  autorotation-descent: 6
+  rotor-speed: 45
+  air-drag: 0.02
+health: 420
+armor: { front: 6, side: 4, rear: 4, top: 3, bottom: 5 }
+fuel: { capacity: 110, consumption: 0.5 }
+seats:
+  - { name: pilot, locator: seat_pilot, role: driver, weapons: [minigun, rockets, flares] }
+  - { name: copilot, locator: seat_copilot, role: copilot }
+weapons:
+  minigun:
+    type: mg
+    display-name: "Minigun"
+    muzzle: [muzzle_mg_l, muzzle_mg_r]
+    damage: 6
+    penetration: 10
+    rpm: 1500
+    spread: 1.8
+    magazine: 500
+    ammo: 2000
+    reload: 6
+    velocity: 13
+    traverse-speed: 30
+    yaw-min: -15
+    yaw-max: 15
+    pitch-min: -25
+    pitch-max: 10
+  rockets:
+    type: rocket
+    display-name: "Rocket Pods"
+    muzzle: [muzzle_pod_l, muzzle_pod_r]
+    damage: 50
+    penetration: 45
+    splash: 3
+    splash-damage: 40
+    explosion-power: 1.8
+    velocity: 6
+    rpm: 150
+    magazine: 14
+    ammo: 28
+    reload: 10
+    block-damage: true
+    traverse-speed: 0
+    yaw-min: 0
+    yaw-max: 0
+    pitch-min: 0
+    pitch-max: 0
+  flares:
+    type: flare
+    display-name: "Flares"
+    ammo: 8
+    magazine: 8
+    flare-ticks: 80
+    cooldown-ticks: 60
+sounds:
+  engine: minecraft:entity.ender_dragon.flap

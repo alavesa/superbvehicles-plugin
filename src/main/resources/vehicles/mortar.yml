@@ -1,0 +1,31 @@
+id: mortar
+display-name: "<gold>Mortar"
+class: static
+model: mortar
+health: 120
+armor: { front: 2, side: 2, rear: 2, top: 1 }
+fuel: { capacity: 0 }
+seats:
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [tube], exposed: true }
+weapons:
+  tube:
+    type: mortar
+    display-name: "81 mm Mortar"
+    muzzle: [muzzle_1]
+    mortar-angle: 62
+    damage: 90
+    penetration: 25
+    splash: 5
+    splash-damage: 80
+    explosion-power: 2.5
+    velocity: 4
+    gravity: 0.05
+    rpm: 10
+    magazine: 1
+    ammo: 24
+    reload: 5
+    block-damage: true
+    lifetime: 16
+    traverse-speed: 60
+    pitch-min: 40
+    pitch-max: 85

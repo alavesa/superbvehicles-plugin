@@ -1,0 +1,72 @@
+id: tom6
+display-name: "<gold>TOM-6 Light Tank"
+class: tracked
+model: tom6
+physics:
+  mass: 22000
+  engine-power: 700
+  max-speed: 13
+  reverse-speed: 5
+  turn-rate: 2.0
+  step-height: 1.1
+  neutral-turn-rate: 30
+  grip: 0.55
+  idle-rpm: 600
+  max-rpm: 2400
+health: 1800
+armor: { front: 120, side: 70, rear: 40, top: 25, bottom: 30 }
+fuel: { capacity: 260, consumption: 0.7 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver }
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [cannon_ap, cannon_he, coax] }
+  - { name: commander, locator: seat_commander, role: copilot }
+weapons:
+  cannon_ap:
+    type: cannon
+    display-name: "Main Gun"
+    ammo-type: AP
+    muzzle: [muzzle_1]
+    damage: 240
+    penetration: 260
+    splash: 1.5
+    splash-damage: 20
+    velocity: 18
+    rpm: 9
+    magazine: 1
+    ammo: 24
+    reload: 6
+    recoil: 0.25
+    block-damage: false
+    traverse-speed: 40
+    pitch-min: -7
+    pitch-max: 20
+  cannon_he:
+    type: cannon
+    display-name: "Main Gun"
+    ammo-type: HE
+    muzzle: [muzzle_1]
+    damage: 110
+    penetration: 60
+    splash: 5
+    splash-damage: 90
+    explosion-power: 3
+    velocity: 16
+    rpm: 9
+    magazine: 1
+    ammo: 16
+    reload: 6
+    recoil: 0.25
+    block-damage: true
+    traverse-speed: 40
+    pitch-min: -7
+    pitch-max: 20
+  coax:
+    type: mg
+    display-name: "Coaxial MG"
+    muzzle: [muzzle_1]
+    damage: 7
+    penetration: 10
+    rpm: 650
+    magazine: 250
+    ammo: 2000
+    traverse-speed: 40

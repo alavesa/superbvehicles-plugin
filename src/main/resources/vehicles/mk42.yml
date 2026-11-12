@@ -1,0 +1,30 @@
+id: mk42
+display-name: "<gold>Mk-42 Naval Gun"
+class: static
+model: mk42
+health: 1000
+armor: { front: 40, side: 30, rear: 20, top: 12 }
+fuel: { capacity: 0 }
+seats:
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [gun] }
+weapons:
+  gun:
+    type: cannon
+    display-name: "127 mm Gun"
+    ammo-type: HE
+    muzzle: [muzzle_1]
+    damage: 180
+    penetration: 90
+    splash: 6
+    splash-damage: 140
+    explosion-power: 4
+    velocity: 17
+    rpm: 25
+    magazine: 2
+    ammo: 60
+    reload: 5
+    recoil: 0.2
+    block-damage: true
+    traverse-speed: 45
+    pitch-min: -10
+    pitch-max: 65

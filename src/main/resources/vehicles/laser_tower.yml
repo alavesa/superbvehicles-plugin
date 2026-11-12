@@ -1,0 +1,31 @@
+id: laser_tower
+display-name: "<gold>Laser Tower"
+class: static
+model: laser_tower
+health: 800
+armor: { front: 30, side: 30, rear: 30, top: 15 }
+fuel: { capacity: 0 }
+seats:
+  - { name: operator, locator: seat_operator, role: gunner, weapons: [laser] }
+weapons:
+  laser:
+    type: laser
+    display-name: "Laser"
+    muzzle: [muzzle_1]
+    damage: 45
+    penetration: 90
+    rpm: 90
+    spread: 0
+    magazine: 30
+    ammo: 300
+    reload: 6
+    velocity: 60
+    gravity: 0
+    range: 220
+    trail: END_ROD
+    particle: FLASH
+    hit-sound: minecraft:block.beacon.deactivate
+    sound: minecraft:block.beacon.power_select
+    traverse-speed: 200
+    pitch-min: -15
+    pitch-max: 85

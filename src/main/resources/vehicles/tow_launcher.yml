@@ -1,0 +1,29 @@
+id: tow_launcher
+display-name: "<gold>TOW Launcher"
+class: static
+model: tow_launcher
+health: 220
+armor: { front: 10, side: 6, rear: 4, top: 4 }
+fuel: { capacity: 0 }
+seats:
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [tow], exposed: true }
+weapons:
+  tow:
+    type: missile
+    display-name: "Wire-guided Missile"
+    guidance: wire
+    muzzle: [muzzle_1]
+    damage: 230
+    penetration: 320
+    splash: 3
+    explosion-power: 2.2
+    velocity: 3.4
+    turn-rate: 5
+    rpm: 5
+    magazine: 1
+    ammo: 6
+    reload: 10
+    lifetime: 18
+    traverse-speed: 50
+    pitch-min: -10
+    pitch-max: 30

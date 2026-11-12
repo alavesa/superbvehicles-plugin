@@ -1,0 +1,32 @@
+# SuperbVehicles vehicle definition. Model: models/truck.bbmodel (a placeholder is generated if missing).
+id: truck
+display-name: "<gold>Transport Truck"
+class: wheeled
+model: truck
+model-yaw: 180            # the model's Blockbench north faces forward
+scale: 1.0
+physics:
+  mass: 6500
+  engine-power: 260
+  max-speed: 18           # blocks per second
+  reverse-speed: 6
+  turn-rate: 2.4
+  step-height: 0.7
+  brake: 12
+  grip: 0.3
+  gears: [4, 8, 12, 18]
+  idle-rpm: 700
+  max-rpm: 3200
+health: 450
+armor: { front: 8, side: 5, rear: 4, top: 3 }
+fuel: { capacity: 160, consumption: 0.35 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver }
+  - { name: codriver, locator: seat_codriver, role: passenger }
+  - { name: bed1, locator: seat_bed1, role: passenger, exposed: true }
+  - { name: bed2, locator: seat_bed2, role: passenger, exposed: true }
+  - { name: bed3, locator: seat_bed3, role: passenger, exposed: true }
+  - { name: bed4, locator: seat_bed4, role: passenger, exposed: true }
+sounds:
+  engine: minecraft:entity.minecart.riding
+  horn: minecraft:block.note_block.didgeridoo

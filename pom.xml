@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>fi.alavesa</groupId>
+  <artifactId>superbvehicles</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <name>SuperbVehicles</name>
+  <description>Data-driven Blockbench vehicles for Paper 26.x: wheeled, tracked, boats, helicopters, planes and static emplacements with mounted weapons, damage, fuel and a generated resource pack.</description>
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>papermc</id>
+      <url>https://repo.papermc.io/repository/maven-public/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.papermc.paper</groupId>
+      <artifactId>paper-api</artifactId>
+      <version>26.2.build.135-stable</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.11.4</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- The server's own netty, compile-only: the same-port pack host hooks the listening channel (compat package). -->
+    <dependency><groupId>io.netty</groupId><artifactId>netty-common</artifactId><version>4.2.16.Final</version><scope>system</scope><systemPath>${project.basedir}/libs/netty-common-4.2.16.Final.jar</systemPath></dependency>
+    <dependency><groupId>io.netty</groupId><artifactId>netty-buffer</artifactId><version>4.2.16.Final</version><scope>system</scope><systemPath>${project.basedir}/libs/netty-buffer-4.2.16.Final.jar</systemPath></dependency>
+    <dependency><groupId>io.netty</groupId><artifactId>netty-transport</artifactId><version>4.2.16.Final</version><scope>system</scope><systemPath>${project.basedir}/libs/netty-transport-4.2.16.Final.jar</systemPath></dependency>
+    <dependency><groupId>io.netty</groupId><artifactId>netty-handler</artifactId><version>4.2.16.Final</version><scope>system</scope><systemPath>${project.basedir}/libs/netty-handler-4.2.16.Final.jar</systemPath></dependency>
+    <dependency><groupId>io.netty</groupId><artifactId>netty-resolver</artifactId><version>4.2.16.Final</version><scope>system</scope><systemPath>${project.basedir}/libs/netty-resolver-4.2.16.Final.jar</systemPath></dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.4</version>
+      </plugin>
+    </plugins>
+    <finalName>SuperbVehicles-${project.version}</finalName>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+        <excludes><exclude>**/*.bbmodel</exclude><exclude>**/*.png</exclude></excludes>
+      </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <includes><include>**/*.bbmodel</include><include>**/*.png</include></includes>
+      </resource>
+    </resources>
+  </build>
+</project>

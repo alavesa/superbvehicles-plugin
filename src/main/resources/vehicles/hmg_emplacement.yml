@@ -1,0 +1,28 @@
+id: hmg_emplacement
+display-name: "<gold>HMG Emplacement"
+class: static
+model: hmg_emplacement
+health: 180
+armor: { front: 12, side: 4, rear: 2, top: 2 }
+fuel: { capacity: 0 }
+seats:
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [hmg], exposed: true }
+weapons:
+  hmg:
+    type: mg
+    display-name: "Heavy MG"
+    muzzle: [muzzle_1]
+    damage: 10
+    penetration: 14
+    rpm: 500
+    spread: 1.0
+    magazine: 150
+    ammo: 1200
+    reload: 5
+    velocity: 13
+    range: 180
+    traverse-speed: 140
+    yaw-min: -100
+    yaw-max: 100
+    pitch-min: -15
+    pitch-max: 60

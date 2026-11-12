@@ -1,0 +1,97 @@
+# SuperbVehicles - config.yml. Every vehicle lives in vehicles/<id>.yml with its model in models/<model>.bbmodel.
+# /sbv reload re-reads this file, the vehicles and rebuilds the pack.
+
+extract-new-defaults: true        # copy vehicles/models shipped in the jar that you do not have yet (never overwrites)
+
+pack:
+  min-format: 97                  # 26.3 = 97; never below 65 (26.x clients reject the pack)
+  max-format: 999
+  include-hidden-cubes: false     # cubes hidden in Blockbench (eye icon) are left out
+  host:
+    enabled: true
+    mode: same-port               # same-port | self | url | folder
+    port: 25580                   # self mode
+    address: ""                   # host players use; empty = the address they connected with
+    url: ""                       # url mode
+    folder: ""                    # folder mode: an existing pack folder (assets/superbvehicles is replaced inside it)
+    prompt: "<gold>SuperbVehicles</gold> vehicle models"
+    required: false
+    join-delay-ticks: 20
+
+render:
+  view-range: 2.0                 # ItemDisplay view range multiplier (1.0 = 64 blocks)
+  interpolation-ticks: 1          # transformation interpolation (1 = smooth per-tick updates)
+  teleport-ticks: 1
+  passenger-offset: 0.0           # vertical nudge of all parts (blocks) if the root attachment differs on your client
+  shadow: false
+
+physics:
+  substeps: 2                     # collision substeps per tick for fast vehicles
+  gravity: 0.08                   # blocks/tick^2
+  max-speed-cap: 4.0              # blocks/tick absolute cap
+  block-breaking: false           # fast vehicles break soft blocks
+  breakable-blocks: [SHORT_GRASS, TALL_GRASS, FERN, LARGE_FERN, DEAD_BUSH, SWEET_BERRY_BUSH, SUGAR_CANE, GLASS, GLASS_PANE, LEAVES]
+  crash:
+    min-speed: 6.0                # blocks/s lost in one tick that counts as a crash
+    vehicle-damage: 2.5           # per block/s lost
+    rider-damage: 0.5
+    ram-damage: 1.2               # to entities per block/s
+  water-drag: 0.6
+
+seats:
+  enter-range: 4.5
+  dismount-speed: 6.0             # ground vehicles: sneak leaves only below this speed (blocks/s)
+  bail-out-ticks: 8               # aircraft: double-tap sneak within this many ticks to bail out
+  eject-velocity: 1.2
+  rider-offset: 0.6               # blocks the seat marker sits below the rider's seat point (vanilla attachment)
+
+controls:
+  wheeled:   { throttle: forward, brake: backward, steer: left_right, handbrake: jump, fire: sprint, engine: swap_hands, horn: drop }
+  tracked:   { throttle: forward, brake: backward, steer: left_right, handbrake: jump, fire: sprint, engine: swap_hands }
+  boat:      { throttle: forward, brake: backward, steer: left_right, fire: sprint, engine: swap_hands }
+  helicopter: { collective-up: forward, collective-down: backward, pedals: left_right, fire: jump, engine: swap_hands, countermeasure: sprint }
+  plane:     { throttle-up: forward, throttle-down: backward, rudder: left_right, fire: jump, airbrake: sprint, gear: swap_hands, countermeasure: drop }
+  static:    { fire: jump, alt-fire: sprint }
+  gunner:    { fire: jump, alt-fire: sprint, countermeasure: swap_hands }
+
+weapons:
+  max-projectiles: 400
+  max-per-vehicle: 40
+  friendly-fire: true
+  team-provider: scoreboard       # scoreboard | none
+  block-damage: true              # master switch for weapon block damage
+  projectile-display: true        # item displays for shells/rockets/missiles/bombs
+
+damage:
+  enabled: true
+  engine-damage-below: 0.3        # health fraction: engine power halves
+  fire-below: 0.2                 # health fraction: the vehicle burns
+  fire-damage-per-second: 0.5
+  explosion-on-destroy: true
+  wreck: true                     # keep a burning wreck for the type's wreck-seconds
+  fall-damage: 3.0                # per block/s of vertical impact above the threshold
+  fall-threshold: 8.0
+  protect-occupants: true         # riders inside closed seats take no direct hits
+
+fuel:
+  enabled: true
+  can-amount: 40                  # units a fuel can holds
+  empty-engine-off: true
+
+hud:
+  enabled: true
+  glyphs: true                    # bar glyphs from the pack font (falls back to text when the pack is missing)
+  action-bar: true
+  boss-bar: health                # health | fuel | none
+  update-ticks: 2
+
+sounds:
+  engine-interval-ticks: 6
+  volume: 1.0
+
+persistence:
+  save-interval-seconds: 120
+  despawn-unloaded: true          # vehicles in unloaded chunks are despawned and respawned on load
+
+debug:
+  log-physics: false

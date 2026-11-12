@@ -1,0 +1,16 @@
+name: SuperbVehicles
+version: '${project.version}'
+main: fi.alavesa.superbvehicles.SuperbVehiclesPlugin
+api-version: '1.21'
+description: Data-driven Blockbench vehicles - wheeled, tracked, boats, helicopters, planes and static emplacements with mounted weapons.
+author: Piia Alavesa
+permissions:
+  superbvehicles.admin:
+    description: Every /sbv command, spawning and removing any vehicle.
+    default: op
+  superbvehicles.use.*:
+    description: Enter and drive every vehicle type.
+    default: true
+  superbvehicles.spawn.*:
+    description: Place every vehicle type from its item.
+    default: true

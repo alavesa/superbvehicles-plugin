@@ -1,0 +1,70 @@
+id: bmp2
+display-name: "<gold>BMP-2 Fighting Vehicle"
+class: tracked
+model: bmp2
+physics:
+  mass: 14300
+  engine-power: 520
+  max-speed: 14
+  reverse-speed: 5
+  turn-rate: 2.2
+  step-height: 1.1
+  neutral-turn-rate: 35
+  grip: 0.5
+  idle-rpm: 600
+  max-rpm: 2600
+health: 1300
+armor: { front: 60, side: 35, rear: 25, top: 15, bottom: 20 }
+fuel: { capacity: 220, consumption: 0.55 }
+seats:
+  - { name: driver, locator: seat_driver, role: driver }
+  - { name: gunner, locator: seat_gunner, role: gunner, weapons: [autocannon, atgm, coax] }
+  - { name: commander, locator: seat_commander, role: copilot }
+  - { name: troop1, locator: seat_troop1, role: passenger }
+  - { name: troop2, locator: seat_troop2, role: passenger }
+  - { name: troop3, locator: seat_troop3, role: passenger }
+weapons:
+  autocannon:
+    type: autocannon
+    display-name: "30 mm Autocannon"
+    muzzle: [muzzle_1]
+    damage: 28
+    penetration: 55
+    rpm: 300
+    spread: 0.8
+    magazine: 50
+    ammo: 500
+    reload: 5
+    velocity: 15
+    splash: 1.5
+    splash-damage: 10
+    block-damage: false
+    traverse-speed: 60
+    pitch-min: -5
+    pitch-max: 70
+  atgm:
+    type: missile
+    display-name: "Guided Missile"
+    guidance: wire
+    muzzle: [muzzle_atgm]
+    damage: 220
+    penetration: 300
+    splash: 3
+    velocity: 3.2
+    turn-rate: 5
+    rpm: 6
+    magazine: 1
+    ammo: 4
+    reload: 12
+    lifetime: 15
+    traverse-speed: 60
+  coax:
+    type: mg
+    display-name: "Coaxial MG"
+    muzzle: [muzzle_1]
+    damage: 7
+    penetration: 10
+    rpm: 650
+    magazine: 250
+    ammo: 2000
+    traverse-speed: 60
