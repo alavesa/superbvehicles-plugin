@@ -89,7 +89,7 @@ public final class Vehicle {
     public Vehicle(SuperbVehiclesPlugin plugin, UUID id, VehicleType type, World world, Pose pose) {
         this.plugin = plugin; this.id = id; this.type = type; this.world = world; this.pose = pose;
         pose.modelYaw = type.modelYaw;
-        health = type.health; fuel = type.fuelCapacity;
+        health = type.health; fuel = type.fuelCapacity * type.initialFuel;
         seats = new SeatSlot[type.seats.size()];
         for (int i = 0; i < seats.length; i++) seats[i] = new SeatSlot(i, type.seats.get(i));
         for (var e : type.weapons.entrySet()) weapons.put(e.getKey(), new MountedWeapon(this, e.getValue()));
@@ -149,10 +149,13 @@ public final class Vehicle {
     public Vector3d position() { return pose.position(); }
 
     /** The hull OBB in the world. */
-    public Obb hull() {
-        Vector3d c = pose.toWorld(hitboxCenterPx, type.scale);
+    public Obb hull() { return hullAt(pose); }
+
+    /** The hull OBB for any pose (the physics controllers evaluate it at intermediate poses). */
+    public Obb hullAt(Pose at) {
+        Vector3d c = at.toWorld(hitboxCenterPx, type.scale);
         Vector3d half = new Vector3d(hitboxHalfPx[0] / 16 * type.scale, hitboxHalfPx[1] / 16 * type.scale, hitboxHalfPx[2] / 16 * type.scale);
-        return new Obb(c, half, pose.rotation());
+        return new Obb(c, half, at.rotation());
     }
 
     /** World position of a locator (or bone pivot of that name) in the CURRENT animated pose; null when absent. */
@@ -272,12 +275,18 @@ public final class Vehicle {
             controls.lookYaw = driver.getLocation().getYaw(); controls.lookPitch = driver.getLocation().getPitch();
             plugin.seats().drainEdges(driver, controls);
         } else controls.held(null);
-        // physics
-        if (!dormant) physics.tick(controls, collider);
+        // physics (guarded: a NaN or a runaway speed freezes the vehicle and logs once instead of flinging it away)
+        if (!dormant) {
+            Pose before = pose.copy();
+            phys.activeClamp = "";
+            physics.tick(controls, collider);
+            sanity(before);
+        }
         controls.clearEdges();
-        // fuel
+        if (plugin.vehicles().debugging(this)) plugin.vehicles().debugTick(this);
+        // fuel (consumption: units per second at full load)
         if (plugin.flag("fuel.enabled", true) && phys.engineOn && type.fuelCapacity > 0) {
-            fuel -= type.fuelConsumption / 20.0 * (0.25 + 0.75 * Math.min(1, Math.abs(phys.throttle) + Math.abs(phys.collective)));
+            fuel -= type.fuelConsumption * fi.alavesa.superbvehicles.physics.Units.DT * (0.25 + 0.75 * Math.min(1, Math.abs(phys.throttle) + Math.abs(phys.collective)));
             if (fuel <= 0) { fuel = 0; if (plugin.flag("fuel.empty-engine-off", true)) { phys.engineOn = false; Player d = driver(); if (d != null) plugin.messages().actionBar(d, "fuel-empty"); } }
         }
         // weapons
@@ -389,7 +398,27 @@ public final class Vehicle {
     }
 
     public double fuelFraction() { return type.fuelCapacity <= 0 ? 1 : Math.max(0, Math.min(1, fuel / type.fuelCapacity)); }
-    public boolean engineAvailable() { return !wreck && health > 0 && (fuel > 0 || !plugin.flag("fuel.enabled", true) || type.fuelCapacity <= 0); }
+    /** True when this vehicle uses fuel and the tank is empty. */
+    public boolean outOfFuel() { return plugin.flag("fuel.enabled", true) && type.fuelCapacity > 0 && fuel <= 0; }
+    public boolean engineAvailable() { return !wreck && health > 0 && !outOfFuel(); }
+
+    private int insaneLogTick = -10000;
+
+    /** NaN/Infinity guard, per-tick position delta cap, and the emergency freeze above 3x the configured max speed. */
+    private void sanity(Pose before) {
+        boolean finite = Double.isFinite(pose.x) && Double.isFinite(pose.y) && Double.isFinite(pose.z) && Double.isFinite(pose.yaw) && Double.isFinite(pose.pitch) && Double.isFinite(pose.roll)
+            && Double.isFinite(phys.vel.x) && Double.isFinite(phys.vel.y) && Double.isFinite(phys.vel.z);
+        double moved = Math.sqrt((pose.x - before.x) * (pose.x - before.x) + (pose.y - before.y) * (pose.y - before.y) + (pose.z - before.z) * (pose.z - before.z));
+        double maxSpeed = Math.max(1, type.maxSpeed);
+        double maxDelta = fi.alavesa.superbvehicles.physics.Units.perTick(Math.max(maxSpeed * 3, 10));
+        String why = !finite ? "non-finite position or velocity" : phys.vel.length() > maxSpeed * 3 ? String.format(java.util.Locale.ROOT, "speed %.1f b/s is over 3x max-speed %.1f", phys.vel.length(), maxSpeed)
+            : moved > maxDelta ? String.format(java.util.Locale.ROOT, "moved %.2f blocks in one tick", moved) : null;
+        if (why == null) return;
+        pose.set(before);
+        phys.vel.set(0, 0, 0);
+        phys.speed = 0;
+        if (age - insaneLogTick > 200) { insaneLogTick = (int) age; plugin.getLogger().warning("Vehicle " + this + " frozen for a tick: " + why + " - please report with /sbv debug physics output"); }
+    }
     /** Engine power multiplier from damage. */
     public double powerFactor() { double hp = health / maxHealth(); return hp < plugin.cfg("damage.engine-damage-below", 0.3) ? 0.5 : 1.0; }
 

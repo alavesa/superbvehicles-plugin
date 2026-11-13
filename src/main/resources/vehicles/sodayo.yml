@@ -3,16 +3,28 @@ display-name: "<gold>Sodayo Pickup"
 class: wheeled
 model: sodayo
 physics:
-  mass: 2200
-  engine-power: 200
-  max-speed: 24
-  reverse-speed: 8
-  turn-rate: 3.2
-  step-height: 0.6
-  grip: 0.38
-  gears: [6, 11, 17, 24]
+  mass: 2200                 # kg
+  engine-force: 10000        # N
+  max-speed: 27              # blocks/s
+  max-reverse-speed: 8       # blocks/s
+  rolling-resistance: 0.015
+  drag-coefficient: 0.45     # N per (blocks/s)^2
+  brake-force: 19000         # N
+  handbrake-force: 22000     # N
+  lateral-grip: 8            # 1/s
+  drift-grip: 1.2            # 1/s
+  steer-angle: 32            # degrees
+  step-height: 0.6           # blocks
+  gears: [7, 13, 20, 27]
   idle-rpm: 800
   max-rpm: 5500
+  auto-start-engine: true
+hud-skin: civilian               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 33              # blocks/s at full scale (120 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: bar                   # bar | arc
 health: 260
 armor: { front: 4, side: 3, rear: 3, top: 2 }
 fuel: { capacity: 90, consumption: 0.3 }

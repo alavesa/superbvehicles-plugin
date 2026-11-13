@@ -40,6 +40,7 @@ public final class SeatManager implements Listener {
 
     private final SuperbVehiclesPlugin plugin;
     private final Map<UUID, Keys> keys = new HashMap<>();
+    private final InputCache inputs = new InputCache();
     private boolean forced;
     private int tick;
 
@@ -50,12 +51,13 @@ public final class SeatManager implements Listener {
     // ------------------------------------------------------------------ input bookkeeping
 
     private Keys keys(Player p) { return keys.computeIfAbsent(p.getUniqueId(), k -> new Keys()); }
-    public Input inputOf(Player p) { Keys k = keys.get(p.getUniqueId()); return k == null ? null : k.input; }
+    public Input inputOf(Player p) { return inputs.get(p.getUniqueId()); }
 
     public void input(Player p, Input in) {
         Keys k = keys(p);
         boolean wasSneak = k.input != null && k.input.isSneak();
         k.input = in;
+        inputs.put(p.getUniqueId(), in);
         if (in.isSneak() && !wasSneak) {
             int window = (int) plugin.cfg("seats.bail-out-ticks", 8);
             if (tick - k.lastSneakTick <= window) k.bailUntil = tick + 3;
@@ -140,6 +142,11 @@ public final class SeatManager implements Listener {
         if (!seat.stand.addPassenger(p)) return false;
         seat.enteredTick = tick;
         seat.weaponIndex = 0;
+        // the engine starts when a driver takes the seat (physics.auto-start-engine, default true)
+        if (seat.def.role == VehicleType.SeatRole.DRIVER && v.type.physicsFlag("auto-start-engine", true) && v.type.vehicleClass != VehicleClass.STATIC && !v.phys.engineOn && v.engineAvailable()) {
+            v.phys.engineOn = true; v.phys.idleTicks = 0;
+            v.playSound(v.type.sound("start", "minecraft:block.piston.extend"), 0.8f, 0.6f);
+        }
         keys(p).bailUntil = -1;
         plugin.messages().send(p, current != null ? "seat-switched" : "entered", Messages.str("seat", seat.def.name), Messages.str("name", v.displayName()));
         return true;
@@ -193,7 +200,7 @@ public final class SeatManager implements Listener {
         plugin.messages().send(p, v.type.vehicleClass == VehicleClass.PLANE ? "ejected" : "bailed-out");
         plugin.sched().later(1, () -> {
             if (!p.isOnline()) return;
-            p.setVelocity(new Vector(0, plugin.cfg("seats.eject-velocity", 1.2), 0).add(new Vector(v.phys.vel.x, 0, v.phys.vel.z).multiply(0.5)));
+            p.setVelocity(new Vector(0, plugin.cfg("seats.eject-velocity", 1.2), 0).add(new Vector(v.phys.vel.x, 0, v.phys.vel.z).multiply(0.5 / fi.alavesa.superbvehicles.physics.Units.TPS)));
             p.addPotionEffect(new PotionEffect(PotionEffectType.SLOW_FALLING, 20 * 25, 0, false, false, true));
         });
     }
@@ -242,6 +249,7 @@ public final class SeatManager implements Listener {
         Vehicle v = plugin.vehicles().byPlayer(p);
         if (v != null) exit(p, true);
         keys.remove(p.getUniqueId());
-        plugin.hud().forgetPlayer(p);
+        inputs.forget(p.getUniqueId());
+        plugin.hud().quit(p);
     }
 }

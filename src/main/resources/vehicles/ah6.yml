@@ -3,22 +3,31 @@ display-name: "<gold>AH-6 Light Helicopter"
 class: helicopter
 model: ah6
 physics:
-  mass: 1600
-  engine-power: 260
-  max-speed: 34
-  turn-rate: 3.5
-  lift: 9
-  descent: 7
-  spool-time: 3
-  cyclic-angle: 24
+  mass: 1600                 # kg
+  max-speed: 28              # blocks/s horizontal (quadratic drag saturates here)
+  climb-rate: 8              # blocks/s
+  descent-rate: 10           # blocks/s
+  max-yaw-rate: 70           # degrees/s
+  max-tilt: 22               # degrees of rotor-disc tilt
+  tilt-rate-deg: 45          # degrees/s
   cyclic-gain: 1.0
-  cyclic-thrust: 2.4
-  torque: 0.12
-  auto-stabilise: true
+  vertical-accel: 8          # blocks/s^2
+  spool-time: 3              # seconds
+  autorotation-descent: 6    # blocks/s with the engine off
   ground-effect: 0.15
-  autorotation-descent: 6
+  hover-settle-time: 6       # seconds from full speed to hover after releasing the cyclic
+  max-horizontal-speed: 28   # hard clamps (safety net)
+  max-climb-speed: 8
+  max-descent-speed: 10
+  auto-stabilise: true
   rotor-speed: 45
-  air-drag: 0.02
+  auto-start-engine: true
+hud-skin: aircraft               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 31              # blocks/s at full scale (110 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: arc                   # bar | arc
 health: 420
 armor: { front: 6, side: 4, rear: 4, top: 3, bottom: 5 }
 fuel: { capacity: 110, consumption: 0.5 }

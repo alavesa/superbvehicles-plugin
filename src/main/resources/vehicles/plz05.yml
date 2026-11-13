@@ -4,13 +4,22 @@ class: tracked
 model: plz05
 physics:
   mass: 35000
-  engine-power: 800
-  max-speed: 11
-  reverse-speed: 4
-  turn-rate: 1.6
+  engine-force: 56000
+  max-speed: 12              # blocks/s
+  max-reverse-speed: 4
+  rolling-resistance: 0.03
+  drag-coefficient: 4.0
+  brake-force: 200000
+  lateral-grip: 12
+  neutral-turn-rate: 26      # degrees/s
   step-height: 1.1
-  neutral-turn-rate: 24
-  grip: 0.55
+  auto-start-engine: true
+hud-skin: military               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 14              # blocks/s at full scale (50 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: bar                   # bar | arc
 health: 1600
 armor: { front: 50, side: 35, rear: 25, top: 15, bottom: 20 }
 fuel: { capacity: 300, consumption: 0.8 }

@@ -1,9 +1,10 @@
 package fi.alavesa.superbvehicles.physics;
 
 import fi.alavesa.superbvehicles.core.Vehicle;
-import org.joml.Vector3d;
 
-/** Emplacements: settle onto the ground once, never move. */
+import java.util.Locale;
+
+/** Emplacements: settle onto the ground once (depenetrating if placed into it), never move. */
 public final class StaticPhysics extends VehiclePhysics {
     private int settleTicks = 40;
     public StaticPhysics(Vehicle v) { super(v); }
@@ -13,11 +14,12 @@ public final class StaticPhysics extends VehiclePhysics {
         if (settleTicks > 0) {
             settleTicks--;
             double g = col.groundAt(v.pose.x, v.pose.y, v.pose.z, 0.5, 4);
-            if (!Double.isNaN(g) && Math.abs(g - v.pose.y) > 0.01) { v.pose.y = g; }
-            else if (Double.isNaN(g)) { s.vel.y = Math.max(-2, s.vel.y - gravity()); move(col, new Vector3d(0, s.vel.y, 0), false); if (s.onGround) s.vel.y = 0; }
+            if (!Double.isNaN(g)) { v.pose.y = g; s.vel.set(0, 0, 0); }
+            else { s.vel.set(0, Math.max(-40, s.vel.y - gravity() * Units.DT), 0); integrate(col, false); if (s.onGround) s.vel.y = 0; }
         }
         s.onGround = true;
     }
 
+    @Override public String debugLine() { return String.format(Locale.ROOT, "static emplacement at %.2f %.2f %.2f, settling %d", v.pose.x, v.pose.y, v.pose.z, settleTicks); }
     @Override public String animationState() { return v.wreck ? "wreck" : "idle"; }
 }

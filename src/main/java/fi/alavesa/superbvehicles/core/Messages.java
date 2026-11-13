@@ -46,7 +46,24 @@ public final class Messages {
     public Component parse(String mini, TagResolver... resolvers) { return MM.deserialize(mini == null ? "" : mini, TagResolver.resolver(resolvers)); }
 
     public void send(Audience to, String key, TagResolver... resolvers) { if (to != null) to.sendMessage(get(key, resolvers)); }
-    public void actionBar(Audience to, String key, TagResolver... resolvers) { if (to != null) to.sendActionBar(get(key, resolvers)); }
+    public void actionBar(Audience to, String key, TagResolver... resolvers) {
+        if (to == null) return;
+        Component c = get(key, resolvers);
+        if (actionBarHook != null && actionBarHook.test(to, c)) return;   // a vehicle rider: shown inside the HUD line
+        to.sendActionBar(c);
+    }
+
+    private static java.util.function.BiPredicate<Audience, Component> actionBarHook;
+    /** The HUD claims action-bar messages for riders (the HUD owns their action bar). */
+    public static void setActionBarHook(java.util.function.BiPredicate<Audience, Component> hook) { actionBarHook = hook; }
+
+    /** Every raw message (for the HUD marker-colour collision check). */
+    public java.util.List<String> rawAll() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (String k : cfg.getKeys(true)) if (cfg.isString(k)) out.add(cfg.getString(k));
+        for (String k : defaults.getKeys(true)) if (defaults.isString(k)) out.add(defaults.getString(k));
+        return out;
+    }
 
     public static TagResolver str(String name, String value) { return Placeholder.unparsed(name, value == null ? "" : value); }
     public static TagResolver num(String name, double value) { return Placeholder.unparsed(name, Math.abs(value - Math.rint(value)) < 1e-9 ? String.valueOf((long) Math.rint(value)) : String.format(java.util.Locale.ROOT, "%.1f", value)); }

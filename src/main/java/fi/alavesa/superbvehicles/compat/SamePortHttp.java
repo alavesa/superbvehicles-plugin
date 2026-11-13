@@ -18,7 +18,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * Serves the pack zip on the Minecraft port itself (the only NMS-touching code, kept here): the game server's
@@ -33,11 +33,11 @@ public final class SamePortHttp {
     private static final int CHUNK = 256 * 1024;
     private final Server server;
     private final String pathMarker;
-    private final Supplier<File> zip;
+    private final Function<String, File> files;   // request path -> file to serve (null = 404)
     private final List<Channel> parents = new ArrayList<>();
     private volatile long served;
 
-    public SamePortHttp(Server server, String pathMarker, Supplier<File> zip) { this.server = server; this.pathMarker = pathMarker; this.zip = zip; }
+    public SamePortHttp(Server server, String pathMarker, Function<String, File> files) { this.server = server; this.pathMarker = pathMarker; this.files = files; }
 
     /** Hook the listening channel(s). Returns null on success, else why not. */
     @SuppressWarnings("unchecked")
@@ -115,7 +115,7 @@ public final class SamePortHttp {
             head.release(); head = null;
             ChannelPipeline p = ctx.pipeline();
             for (String name : new ArrayList<>(p.names())) if (!name.equals(CHILD) && p.get(name) != null) try { p.remove(name); } catch (Throwable ignored) { }
-            File f = zip.get();
+            File f = path.contains("/" + pathMarker) && path.endsWith(".zip") ? files.apply(path) : null;
             if (!path.contains("/" + pathMarker) || !path.endsWith(".zip") || f == null || !f.isFile()) { reply(ctx, "404 Not Found", 0, null, method.equals("HEAD")); return; }
             reply(ctx, "200 OK", f.length(), f, method.equals("HEAD"));
         }

@@ -82,6 +82,11 @@ public final class SbvCommand {
             .then(Commands.literal("ammo").executes(c -> utility(c, "ammo_crate")))
             .then(Commands.literal("repair").executes(c -> utility(c, "repair_kit"))));
         root.then(Commands.literal("seat").then(Commands.argument("number", IntegerArgumentType.integer(1, 32)).executes(this::seat)));
+        LiteralArgumentBuilder<CommandSourceStack> hud = Commands.literal("hud");
+        hud.executes(this::hudStatus);
+        for (String m : new String[]{"shader", "text", "off"}) hud.then(Commands.literal(m).executes(c -> hudMode(c, m)));
+        hud.then(Commands.literal("units").then(Commands.literal("kmh").executes(c -> hudUnits(c, false))).then(Commands.literal("mph").executes(c -> hudUnits(c, true))));
+        root.then(hud);
         return root;
     }
 
@@ -90,7 +95,7 @@ public final class SbvCommand {
     private void help(CommandSender s) {
         s.sendMessage(Component.text("SuperbVehicles " + plugin.getPluginMeta().getVersion(), NamedTextColor.GOLD));
         s.sendMessage(Component.text("/sbv give <type> [player] [amount] | spawn <type> [x y z] | remove [radius] | removeall [type] | list | info", NamedTextColor.GRAY));
-        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n>", NamedTextColor.GRAY));
+        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n> | hud [shader|text|off|units kmh|mph]", NamedTextColor.GRAY));
         s.sendMessage(Component.text("/sbv reload | pack [rebuild|send|url] | import <file.bbmodel> | item fuel|ammo|repair | debug hitboxes|physics|seats|perf", NamedTextColor.GRAY));
     }
 
@@ -221,6 +226,30 @@ public final class SbvCommand {
         return 0;
     }
 
+    private int hudStatus(CommandContext<CommandSourceStack> c) {
+        Player p = player(c); if (p == null) return 0;
+        var h = plugin.hud();
+        p.sendMessage(Component.text("HUD: " + h.modeOf(p).name().toLowerCase(Locale.ROOT) + ", units " + (h.mphOf(p) ? "mph" : "km/h")
+            + (h.shaderSupported() ? (plugin.host().hudAvailable() ? "; shader HUD pack available" : "; shader HUD pack not built (see console)") : "; shader HUD not supported on this server (text HUD only)")
+            + ". /sbv hud shader|text|off, /sbv hud units kmh|mph", NamedTextColor.GRAY));
+        return 1;
+    }
+
+    private int hudMode(CommandContext<CommandSourceStack> c, String mode) {
+        Player p = player(c); if (p == null) return 0;
+        plugin.hud().setMode(p, fi.alavesa.superbvehicles.hud.HudManager.Mode.valueOf(mode.toUpperCase(Locale.ROOT)));
+        plugin.messages().send(p, "hud-mode", Messages.str("mode", mode));
+        if (mode.equals("shader") && !plugin.hud().shaderSupported()) plugin.messages().send(p, "hud-shader-unsupported");
+        return 1;
+    }
+
+    private int hudUnits(CommandContext<CommandSourceStack> c, boolean mph) {
+        Player p = player(c); if (p == null) return 0;
+        plugin.hud().setMph(p, mph);
+        plugin.messages().send(p, "hud-units", Messages.str("units", mph ? "mph" : "km/h"));
+        return 1;
+    }
+
     private int seat(CommandContext<CommandSourceStack> c) {
         Player p = player(c); if (p == null) return 0;
         Vehicle v = plugin.vehicles().byPlayer(p);
@@ -234,6 +263,7 @@ public final class SbvCommand {
         plugin.reloadConfig();
         plugin.messages().load();
         plugin.types().load(new File(plugin.getDataFolder(), "vehicles"));
+        plugin.selfCheck();
         for (String e : plugin.types().errors) sender(c).sendMessage(Component.text(e, NamedTextColor.RED));
         plugin.messages().send(sender(c), "reloaded", Messages.num("types", plugin.types().all().size()));
         CommandSender s = sender(c);
@@ -298,9 +328,14 @@ public final class SbvCommand {
                 s.sendMessage(Component.text(String.format(Locale.ROOT, "%d vehicle(s), %d projectile(s); last tick %.3f ms, peak %.3f ms (%.3f ms per vehicle)", vm.all().size(), plugin.projectiles().all().size(), vm.lastTickNanos / 1e6, vm.maxTickNanos / 1e6, vm.all().isEmpty() ? 0 : vm.lastTickNanos / 1e6 / vm.all().size()), NamedTextColor.GRAY));
             }
             case "physics" -> {
+                Player pl = player(c);
                 Vehicle v = target(c); if (v == null) return 0;
-                var p = v.phys;
-                s.sendMessage(Component.text(String.format(Locale.ROOT, "%s pose %.2f %.2f %.2f yaw %.1f pitch %.1f roll %.1f | speed %.2f b/s vel %.3f %.3f %.3f | ground %b water %b engine %b rpm %.0f gear %d spool %.2f throttle %.2f steer %.2f state %s", v, v.pose.x, v.pose.y, v.pose.z, v.pose.yaw, v.pose.pitch, v.pose.roll, p.speed, p.vel.x, p.vel.y, p.vel.z, p.onGround, p.inWater, p.engineOn, p.rpm, p.gear, p.spool, p.throttle, p.steer, v.lastState), NamedTextColor.GRAY));
+                if (pl != null && plugin.vehicles().byPlayer(pl) == v) {
+                    boolean on = plugin.vehicles().toggleDebug(pl);
+                    plugin.messages().send(s, "debug-toggled", Messages.str("what", "physics (every tick while you ride)"), Messages.str("state", on ? "on" : "off"));
+                    if (!on) return 1;
+                }
+                s.sendMessage(Component.text("[" + v.type.id + "] " + v.physics().debugLine(), NamedTextColor.GRAY));
             }
             case "hitboxes" -> {
                 Vehicle v = target(c); if (v == null) return 0;

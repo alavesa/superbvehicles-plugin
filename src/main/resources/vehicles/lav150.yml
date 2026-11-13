@@ -4,15 +4,27 @@ class: wheeled
 model: lav150
 physics:
   mass: 9800
-  engine-power: 320
-  max-speed: 20
-  reverse-speed: 7
-  turn-rate: 2.6
+  engine-force: 21000
+  max-speed: 18              # blocks/s (APC)
+  max-reverse-speed: 6
+  rolling-resistance: 0.018
+  drag-coefficient: 1.4
+  brake-force: 70000
+  handbrake-force: 80000
+  lateral-grip: 8
+  drift-grip: 1.5
+  steer-angle: 28
   step-height: 0.8
-  grip: 0.4
-  gears: [5, 9, 14, 20]
+  gears: [5, 9, 13, 18]
   idle-rpm: 700
   max-rpm: 3400
+  auto-start-engine: true
+hud-skin: military               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 22              # blocks/s at full scale (80 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: bar                   # bar | arc
 health: 900
 armor: { front: 45, side: 30, rear: 20, top: 12, bottom: 15 }
 fuel: { capacity: 180, consumption: 0.4 }

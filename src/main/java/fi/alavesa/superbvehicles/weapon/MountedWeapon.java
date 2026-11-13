@@ -140,7 +140,7 @@ public final class MountedWeapon {
             if (o == vehicle || !o.spawned() || !o.type.vehicleClass.aircraft() || !o.occupied()) continue;
             if (!vehicle.plugin.damage().hostileVehicles(vehicle, o)) continue;
             double d = o.position().distance(from);
-            if (d < bestD) { bestD = d; best = o.hull().center.add(new Vector3d(o.phys.vel).mul(d / Math.max(0.1, type.velocity))); }
+            if (d < bestD) { bestD = d; best = o.hull().center.add(new Vector3d(o.phys.vel).div(fi.alavesa.superbvehicles.physics.Units.TPS).mul(d / Math.max(0.1, type.velocity))); }
         }
         if (best == null) { triggerHeld = false; return; }
         aimPoint = best;
@@ -192,8 +192,8 @@ public final class MountedWeapon {
         cooldown = type.cooldownTicks;
         recoilTicks = recoilMax;
         Vector3d vel = new Vector3d(dir).mul(type.velocity);
-        if (type.kind == WeaponType.Kind.BOMB) vel.set(vehicle.phys.vel).add(0, -0.1, 0);
-        else vel.add(new Vector3d(vehicle.phys.vel).mul(0.5));
+        if (type.kind == WeaponType.Kind.BOMB) vel.set(vehicle.phys.vel).div(fi.alavesa.superbvehicles.physics.Units.TPS).add(0, -0.1, 0);
+        else vel.add(new Vector3d(vehicle.phys.vel).div(fi.alavesa.superbvehicles.physics.Units.TPS).mul(0.5));
         vehicle.plugin.projectiles().launch(vehicle, this, from, vel, lockedEntity(), gunner);
         // effects
         Location l = new Location(vehicle.world, from.x, from.y, from.z);
@@ -201,7 +201,7 @@ public final class MountedWeapon {
         if (type.kind == WeaponType.Kind.CANNON || type.kind == WeaponType.Kind.MORTAR) { vehicle.world.spawnParticle(Particle.EXPLOSION, l, 1); vehicle.world.spawnParticle(Particle.LARGE_SMOKE, l, 10, 0.3, 0.3, 0.3, 0.05); }
         else if (type.kind == WeaponType.Kind.ROCKET || type.kind == WeaponType.Kind.MISSILE) vehicle.world.spawnParticle(Particle.CLOUD, l, 8, 0.3, 0.3, 0.3, 0.05);
         else vehicle.world.spawnParticle(Particle.SMOKE, l, 3, 0.1, 0.1, 0.1, 0.02);
-        if (type.recoil > 0) { Vector3d kick = new Vector3d(dir).mul(-type.recoil * 0.05); vehicle.phys.vel.add(kick.x, kick.y * 0.2, kick.z); }
+        if (type.recoil > 0) { Vector3d kick = new Vector3d(dir).mul(-type.recoil); vehicle.phys.vel.add(kick.x, kick.y * 0.2, kick.z); }
         muzzleIndex = type.muzzles.isEmpty() ? 0 : (muzzleIndex + 1) % type.muzzles.size();
         if (magazine <= 0 && reserve > 0 && type.reloadTicks > 0) reloading = type.reloadTicks;
         return true;

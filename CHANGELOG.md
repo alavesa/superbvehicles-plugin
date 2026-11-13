@@ -1,0 +1,38 @@
+# Changelog
+
+## 0.2.0 - 2026-11-13
+
+### Fixed
+- **Cars, trucks and tanks did not move.** The drive force was `engine-power / mass x 20` (a truck got 0.8 blocks/s^2)
+  while rolling resistance was a fixed 1.2 blocks/s^2, so trucks, the LAV-150 and every tank could never leave zero
+  and pickups barely crawled. New `WheeledVehicleController` with SI-style units (newtons, kilograms, blocks/s):
+  engine force falling off toward max speed, service brake, handbrake, parking brake, rolling resistance and quadratic
+  drag that never reverse the motion, lateral grip on the sideways component only, bicycle or differential steering,
+  velocity rebuilt on the new heading.
+- Resting contact with the floor counted as a collision: every horizontal move was blocked and vehicles only advanced
+  through the step-up path (1-2 cm hover jitter). The collider now tests with a 2 cm skin, depenetrates hulls spawned
+  slightly inside blocks, and ground vehicles collide with a yaw-aligned hull (the body lean is visual).
+- **Helicopters were far too fast.** Vertical speed grew without limit (collective added to velocity every tick) and
+  horizontal acceleration was ~30 blocks/s^2. New `HelicopterModel`: rotor-tilt thrust, quadratic drag that saturates
+  at `max-speed`, auto-stabilise to hover, climb/descent targets, hard clamps for horizontal, climb, descent and yaw.
+- Units audit: physics velocities are blocks/second everywhere (weapons, seats and HUD converted); one per-tick
+  conversion point (`Units`).
+
+### Added
+- Shader HUD: speedometer, fuel bar/arc, warning and engine-off icons, aircraft VSI, artificial horizon and altimeter,
+  rendered by modified 26.3 core text shaders from colour-encoded glyphs; three skins; separate resource pack; automatic
+  text fallback; `/sbv hud shader|text|off`, `/sbv hud units kmh|mph`.
+- `/sbv debug physics` per-tick toggle with a "why not moving" line; startup self-check; chunk-loading speed limit;
+  NaN guard and 3x-overspeed freeze; parked vehicles sleep (about 0.001-0.004 ms per tick).
+- Vehicle YAML keys: `engine-force`, `max-reverse-speed`, `rolling-resistance`, `drag-coefficient`, `brake-force`,
+  `handbrake-force`, `parking-brake-force`, `lateral-grip`, `drift-grip`, `steer-falloff`, `max-yaw-rate`,
+  `auto-start-engine`, `fuel.initial-fuel`, helicopter `climb-rate`/`descent-rate`/`max-tilt`/`hover-settle-time`/
+  clamps, plane `engine-force`/clamps, `hud-skin`, `gauge`.
+- Defaults retuned: cars 25-30 blocks/s, APCs and tanks 12-18, AH-6 28, Mi-28 32, A-10 55 (stall 18), boat 22.
+
+### Compatibility
+- Old 0.1.0 YAMLs still load: missing `engine-force` is derived from mass and max speed; per-tick config values
+  (`physics.gravity: 0.08`, `max-speed-cap: 4`) are converted.
+
+## 0.1.0 - 2026-11-12
+- First release.

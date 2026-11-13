@@ -5,16 +5,26 @@ model: wheelchair
 scale: 0.6
 physics:
   mass: 90
-  engine-power: 30
+  engine-force: 260
   max-speed: 5
-  reverse-speed: 2
-  turn-rate: 4.0
+  max-reverse-speed: 2
+  rolling-resistance: 0.02
+  drag-coefficient: 0.2
+  brake-force: 900
+  handbrake-force: 900
+  lateral-grip: 10
+  steer-angle: 40
   step-height: 0.5
-  grip: 0.6
   gears: [5]
   idle-rpm: 0
   max-rpm: 0
-  auto-start: true
+  auto-start-engine: true
+hud-skin: civilian               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 6              # blocks/s at full scale (22 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: bar                   # bar | arc
 health: 60
 fuel: { capacity: 0 }
 seats:

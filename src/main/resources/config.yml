@@ -26,17 +26,22 @@ render:
   shadow: false
 
 physics:
-  substeps: 2                     # collision substeps per tick for fast vehicles
-  gravity: 0.08                   # blocks/tick^2
-  max-speed-cap: 4.0              # blocks/tick absolute cap
+  # UNITS: blocks (= metres), blocks/second, blocks/second^2, degrees, degrees/second, kilograms, newtons.
+  # Vehicle YAMLs use the same units; the plugin converts to per-tick values in exactly one place.
+  gravity: 32                     # blocks/s^2 (vanilla entities fall at 0.08 blocks/tick^2 = 32 blocks/s^2)
+  max-speed-cap: 80               # blocks/s absolute safety limit for any vehicle
+  speed-limit-by-chunk-loading: true   # slow vehicles heading into unloaded / still-generating chunks
+  unloaded-speed-factor: 0.25     # share of max-speed allowed while chunks ahead are not loaded
+  auto-start: true                # engine starts on the first W/S (vehicle YAML: physics.auto-start-engine)
+  engine-off-when-empty: true
+  idle-stop-seconds: 8            # an empty vehicle's engine stops after this long
   block-breaking: false           # fast vehicles break soft blocks
   breakable-blocks: [SHORT_GRASS, TALL_GRASS, FERN, LARGE_FERN, DEAD_BUSH, SWEET_BERRY_BUSH, SUGAR_CANE, GLASS, GLASS_PANE, LEAVES]
   crash:
     min-speed: 6.0                # blocks/s lost in one tick that counts as a crash
-    vehicle-damage: 2.5           # per block/s lost
-    rider-damage: 0.5
-    ram-damage: 1.2               # to entities per block/s
-  water-drag: 0.6
+    vehicle-damage: 2.5           # health per block/s lost
+    rider-damage: 0.5             # hearts per block/s above min-speed
+    ram-damage: 1.2               # to entities, per block/s
 
 seats:
   enter-range: 4.5
@@ -80,10 +85,29 @@ fuel:
 
 hud:
   enabled: true
-  glyphs: true                    # bar glyphs from the pack font (falls back to text when the pack is missing)
+  mode: shader                    # default per player: shader | text | off  (/sbv hud shader|text|off)
+  units: kmh                      # default per player: kmh | mph            (/sbv hud units kmh|mph)
+  update-ticks: 2                 # how often the HUD is evaluated; it is only re-sent when a value changed
+  smoothing: 0.35                 # 0..1 per tick, server-side smoothing of the needle / gauges
+  flash-ticks: 50                 # plugin messages to a rider are shown inside the HUD line this long
+  glyphs: true                    # bar glyphs in the text HUD (from the models pack)
   action-bar: true
   boss-bar: health                # health | fuel | none
-  update-ticks: 2
+  shader:
+    enabled: true                 # build and send the shader HUD pack (a SECOND pack, separate from the models)
+    minecraft-version: "26.3"     # the shaders are written for this client version only; other servers get the text HUD
+  scale: 1.0                      # default scale of both profiles
+  profiles:                       # placement in GUI pixels (scales with the GUI scale like the vanilla HUD)
+    ground:                       # wheeled, tracked, boats
+      anchor: bottom-right        # bottom-right | bottom-left | top-right | top-left | bottom-center
+      offset: [-8, -8]
+      scale: 1.0
+      opacity: 0.95
+    aircraft:                     # helicopters, planes
+      anchor: bottom-right
+      offset: [-8, -8]
+      scale: 1.0
+      opacity: 0.95
 
 sounds:
   engine-interval-ticks: 6
@@ -95,3 +119,4 @@ persistence:
 
 debug:
   log-physics: false
+  physics-interval-ticks: 1       # /sbv debug physics prints every N ticks while you ride

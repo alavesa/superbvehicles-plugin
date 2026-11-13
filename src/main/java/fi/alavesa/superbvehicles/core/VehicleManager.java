@@ -217,4 +217,33 @@ public final class VehicleManager implements Listener {
     }
 
     public int tickCount() { return tick; }
+
+    // ------------------------------------------------------------------ /sbv debug physics
+
+    private final java.util.Set<UUID> physicsDebuggers = new java.util.HashSet<>();
+
+    /** Toggle the per-tick physics print for this player; returns the new state. */
+    public boolean toggleDebug(Player p) {
+        if (physicsDebuggers.remove(p.getUniqueId())) return false;
+        physicsDebuggers.add(p.getUniqueId());
+        return true;
+    }
+
+    public boolean debugging(Vehicle v) {
+        if (physicsDebuggers.isEmpty()) return false;
+        for (Player p : v.occupants()) if (physicsDebuggers.contains(p.getUniqueId())) return true;
+        return false;
+    }
+
+    /** One physics line per tick (debug.physics-interval-ticks) to every debugging rider of this vehicle. */
+    public void debugTick(Vehicle v) {
+        int every = Math.max(1, (int) plugin.cfg("debug.physics-interval-ticks", 1));
+        if (tick % every != 0) return;
+        String line = v.physics().debugLine();
+        // link 7 of the checklist: the physics moved but the entities did not follow
+        if (v.root != null && v.root.isValid() && v.root.getLocation().distanceSquared(v.location()) > 1.0) line += " | WARNING root entity is " + String.format(java.util.Locale.ROOT, "%.1f", Math.sqrt(v.root.getLocation().distanceSquared(v.location()))) + " blocks from the physics position (render not following)";
+        Player driver = v.driver();
+        line = "[" + v.type.id + "] seat " + (driver == null ? "driver empty" : "driver " + driver.getName()) + " | " + line;
+        for (Player p : v.occupants()) if (physicsDebuggers.contains(p.getUniqueId())) p.sendMessage(net.kyori.adventure.text.Component.text(line, net.kyori.adventure.text.format.NamedTextColor.GRAY));
+    }
 }

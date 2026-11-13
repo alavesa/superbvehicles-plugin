@@ -57,7 +57,11 @@ public final class VehicleType {
     public final double mass, enginePower, maxSpeed, turnRate, stepHeight;
     public final double health;
     public final Map<String, Double> armor = new LinkedHashMap<>();
-    public final double fuelCapacity, fuelConsumption;
+    public final double fuelCapacity, fuelConsumption;   // units, units per second at full load
+    public final double initialFuel;                     // 0..1 of the capacity a newly spawned vehicle holds
+    public final String hudSkin;                         // military | civilian | aircraft (texture set of the shader HUD)
+    public final double gaugeMaxSpeed, gaugeSweep, gaugeRedline;   // speedometer: full-scale blocks/s, needle sweep degrees, redline 0..1
+    public final String fuelGauge;                       // bar | arc
     public final List<Seat> seats = new ArrayList<>();
     public final Map<String, WeaponType> weapons = new LinkedHashMap<>();
     public final Map<String, BoneRole> boneRoles = new LinkedHashMap<>();      // lower-case bone name -> role override
@@ -93,6 +97,13 @@ public final class VehicleType {
         ConfigurationSection f = s.getConfigurationSection("fuel");
         fuelCapacity = f == null ? 100 : f.getDouble("capacity", 100);
         fuelConsumption = f == null ? 0.3 : f.getDouble("consumption", 0.3);
+        initialFuel = Math.max(0, Math.min(1, (f == null ? 100 : f.getDouble("initial-fuel", 100)) / 100.0));
+        hudSkin = s.getString("hud-skin", vehicleClass.aircraft() ? "aircraft" : (s.getConfigurationSection("weapons") != null ? "military" : "civilian")).toLowerCase(Locale.ROOT);
+        ConfigurationSection gauge = s.getConfigurationSection("gauge");
+        gaugeMaxSpeed = gauge == null ? Math.max(5, Math.ceil(maxSpeed * 1.2 / 5) * 5) : gauge.getDouble("max-speed", Math.max(5, Math.ceil(maxSpeed * 1.2 / 5) * 5));
+        gaugeSweep = gauge == null ? 270 : gauge.getDouble("sweep", 270);
+        gaugeRedline = gauge == null ? 0.85 : gauge.getDouble("redline", 0.85);
+        fuelGauge = (gauge == null ? (vehicleClass.aircraft() ? "arc" : "bar") : gauge.getString("fuel", vehicleClass.aircraft() ? "arc" : "bar")).toLowerCase(Locale.ROOT);
         List<Map<?, ?>> seatList = s.getMapList("seats");
         int i = 0;
         for (Map<?, ?> m : seatList) { MemoryConfiguration mc = new MemoryConfiguration(); for (var e : m.entrySet()) mc.set(String.valueOf(e.getKey()), e.getValue()); seats.add(new Seat(i++, mc)); }

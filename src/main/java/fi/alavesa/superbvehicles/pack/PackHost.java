@@ -34,6 +34,9 @@ import java.util.zip.ZipInputStream;
  */
 public final class PackHost implements Listener {
     private static final UUID PACK_ID = UUID.nameUUIDFromBytes("fi.alavesa.superbvehicles.pack".getBytes(StandardCharsets.UTF_8));
+    /** The shader HUD travels as a SECOND pack: if a client cannot use it, the vehicle models are unaffected. */
+    public static final UUID HUD_PACK_ID = UUID.nameUUIDFromBytes("fi.alavesa.superbvehicles.hud".getBytes(StandardCharsets.UTF_8));
+    private String hudSha1 = "";
     private final SuperbVehiclesPlugin plugin;
     private HttpServer server;
     private SamePortHttp samePort;
@@ -47,6 +50,10 @@ public final class PackHost implements Listener {
     public String mode() { String m = plugin.getConfig().getString("pack.host.mode", "same-port").toLowerCase(Locale.ROOT).trim(); return m.equals("auto") ? "same-port" : m; }
     public int port() { return plugin.getConfig().getInt("pack.host.port", 25580); }
     public File zip() { return new File(new File(plugin.getDataFolder(), "pack"), "SuperbVehicles-pack.zip"); }
+    public File hudZip() { return new File(new File(plugin.getDataFolder(), "pack"), "SuperbVehicles-hud.zip"); }
+    public String hudSha1() { return hudSha1; }
+    /** Is a shader HUD pack built and deliverable in this mode? */
+    public boolean hudAvailable() { return !hudSha1.isEmpty() && hudZip().isFile() && !mode().equals("folder") && (!mode().equals("url") || !plugin.getConfig().getString("pack.host.hud-url", "").isBlank()); }
     public String sha1() { return sha1; }
 
     public void start() {
@@ -64,7 +71,7 @@ public final class PackHost implements Listener {
 
     private void startSamePort() {
         if (samePort != null) return;
-        SamePortHttp h = new SamePortHttp(plugin.getServer(), "superbvehicles", this::zip);
+        SamePortHttp h = new SamePortHttp(plugin.getServer(), "superbvehicles", path -> path.contains("/superbvehicles/hud-") ? hudZip() : zip());
         String problem = h.install();
         if (problem != null) {
             lastProblem = "could not hook the Minecraft port for pack downloads (" + problem + ")";
@@ -81,7 +88,7 @@ public final class PackHost implements Listener {
         try {
             server = HttpServer.create(new InetSocketAddress("0.0.0.0", port()), 8);
             server.createContext("/", ex -> {
-                File f = zip();
+                File f = ex.getRequestURI().getPath().contains("SuperbVehicles-hud") ? hudZip() : zip();
                 if (!f.exists() || !ex.getRequestURI().getPath().endsWith(".zip")) { ex.sendResponseHeaders(404, -1); ex.close(); return; }
                 byte[] data = Files.readAllBytes(f.toPath());
                 ex.getResponseHeaders().add("Content-Type", "application/zip");
@@ -130,6 +137,7 @@ public final class PackHost implements Listener {
 
     public void refreshHash() {
         try { File f = zip(); sha1 = f.exists() ? HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(Files.readAllBytes(f.toPath()))) : ""; } catch (Exception e) { sha1 = ""; }
+        try { File f = hudZip(); hudSha1 = f.exists() ? HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(Files.readAllBytes(f.toPath()))) : ""; } catch (Exception e) { hudSha1 = ""; }
     }
 
     String addressFor(Player p) {
@@ -159,6 +167,15 @@ public final class PackHost implements Listener {
         };
     }
 
+    public String hudUrlFor(Player p) {
+        return switch (mode()) {
+            case "same-port" -> samePort == null ? null : "http://" + hostPort(p) + "/superbvehicles/hud-" + (hudSha1.isEmpty() ? "pack" : hudSha1) + ".zip";
+            case "self" -> server == null ? null : "http://" + addressFor(p) + ":" + port() + "/SuperbVehicles-hud.zip?v=" + (hudSha1.isEmpty() ? "0" : hudSha1.substring(0, 12));
+            case "url" -> { String u = plugin.getConfig().getString("pack.host.hud-url", ""); yield u == null || u.isBlank() ? null : u.trim(); }
+            default -> null;
+        };
+    }
+
     public void send(Player p) {
         if (!enabled() || mode().equals("folder")) return;
         if (sha1.isEmpty()) refreshHash();
@@ -169,7 +186,10 @@ public final class PackHost implements Listener {
             ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(PACK_ID, URI.create(url), sha1);
             boolean required = plugin.getConfig().getBoolean("pack.host.required", false);
             Component prompt = plugin.messages().parse(plugin.getConfig().getString("pack.host.prompt", "<gold>SuperbVehicles</gold> vehicle models"));
-            p.sendResourcePacks(ResourcePackRequest.resourcePackRequest().packs(info).replace(false).required(required).prompt(prompt).build());
+            java.util.List<ResourcePackInfo> packs = new java.util.ArrayList<>(java.util.List.of(info));
+            String hudUrl = hudAvailable() && plugin.hud().wantsShaderPack(p) ? hudUrlFor(p) : null;
+            if (hudUrl != null) packs.add(ResourcePackInfo.resourcePackInfo(HUD_PACK_ID, URI.create(hudUrl), hudSha1));
+            p.sendResourcePacks(ResourcePackRequest.resourcePackRequest().packs(packs).replace(false).required(required).prompt(prompt).build());
         } catch (Exception e) { plugin.getLogger().warning("Could not send the pack to " + p.getName() + ": " + e); }
     }
 
@@ -198,6 +218,12 @@ public final class PackHost implements Listener {
     }
 
     @EventHandler public void onStatus(PlayerResourcePackStatusEvent e) {
+        if (e.getID() != null && e.getID().equals(HUD_PACK_ID)) {
+            var st = e.getStatus();
+            if (st == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) plugin.hud().shaderPackStatus(e.getPlayer(), true, st.name());
+            else if (st != PlayerResourcePackStatusEvent.Status.ACCEPTED && st != PlayerResourcePackStatusEvent.Status.DOWNLOADED) plugin.hud().shaderPackStatus(e.getPlayer(), false, st.name());
+            return;
+        }
         if (e.getID() == null || !e.getID().equals(PACK_ID)) return;
         var st = e.getStatus();
         if (st == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED || st == PlayerResourcePackStatusEvent.Status.ACCEPTED || st == PlayerResourcePackStatusEvent.Status.DOWNLOADED || st == PlayerResourcePackStatusEvent.Status.DECLINED) return;

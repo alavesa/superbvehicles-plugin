@@ -4,15 +4,24 @@ class: tracked
 model: tom6
 physics:
   mass: 22000
-  engine-power: 700
-  max-speed: 13
-  reverse-speed: 5
-  turn-rate: 2.0
+  engine-force: 47000
+  max-speed: 14              # blocks/s (tank)
+  max-reverse-speed: 5
+  rolling-resistance: 0.03
+  drag-coefficient: 2.8
+  brake-force: 130000
+  lateral-grip: 12
+  neutral-turn-rate: 32      # degrees/s
   step-height: 1.1
-  neutral-turn-rate: 30
-  grip: 0.55
   idle-rpm: 600
   max-rpm: 2400
+  auto-start-engine: true
+hud-skin: military               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 17              # blocks/s at full scale (60 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: bar                   # bar | arc
 health: 1800
 armor: { front: 120, side: 70, rear: 40, top: 25, bottom: 30 }
 fuel: { capacity: 260, consumption: 0.7 }

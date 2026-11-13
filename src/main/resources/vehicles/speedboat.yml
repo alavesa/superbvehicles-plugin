@@ -3,18 +3,25 @@ display-name: "<aqua>Speedboat"
 class: boat
 model: speedboat
 physics:
-  mass: 1400
-  engine-power: 240
-  max-speed: 22
-  reverse-speed: 5
-  turn-rate: 2.6
-  draft: 0.45
-  buoyancy: 0.14
-  water-drag: 0.018
-  planing-speed: 9
-  planing-pitch: 7
+  mass: 1400                 # kg
+  engine-force: 8000         # N
+  max-speed: 22              # blocks/s
+  max-reverse-speed: 5
+  yaw-rate: 52               # degrees/s at speed
+  draft: 0.45                # blocks below the surface
+  buoyancy: 6                # 1/s spring toward the float line
+  water-drag: 1.2            # N per (blocks/s)^2
+  planing-speed: 9           # blocks/s
+  planing-pitch: 7           # degrees
   rudder: 1.1
-  grip: 0.12
+  lateral-grip: 2.5          # 1/s
+  auto-start-engine: true
+hud-skin: civilian               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 28              # blocks/s at full scale (100 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: arc                   # bar | arc
 health: 320
 armor: { front: 3, side: 2, rear: 2, top: 1 }
 fuel: { capacity: 80, consumption: 0.35 }

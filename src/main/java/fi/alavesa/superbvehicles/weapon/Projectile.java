@@ -151,7 +151,7 @@ public final class Projectile {
                 Vehicle tv = t == null ? null : plugin.vehicles().byEntity(t);
                 if (tv != null && tv.phys.flareTicks > 0 && decoy == null && Math.random() < 0.7) decoy = tv.hull().center.add(new Vector3d(Math.random() - 0.5, -2 - Math.random() * 3, Math.random() - 0.5).mul(4));
                 if (decoy != null) { goal = decoy; decoy.y -= 0.05; }
-                else if (tv != null) goal = tv.hull().center.add(new Vector3d(tv.phys.vel).mul(Math.min(20, pos.distance(tv.hull().center) / Math.max(0.1, vel.length()))));
+                else if (tv != null) goal = tv.hull().center.add(new Vector3d(tv.phys.vel).div(fi.alavesa.superbvehicles.physics.Units.TPS).mul(Math.min(20, pos.distance(tv.hull().center) / Math.max(0.1, vel.length()))));
                 else if (t != null && t.isValid()) goal = new Vector3d(t.getLocation().getX(), t.getLocation().getY() + t.getHeight() / 2, t.getLocation().getZ());
                 else if (type.guidance == WeaponType.Guidance.LOCK_LASER) goal = weapon.aimPoint;
             }

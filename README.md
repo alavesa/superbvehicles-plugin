@@ -107,6 +107,132 @@ See the shipped `vehicles/*.yml` for every class. Physics keys are documented in
 `weapons`, `bones`, `hide-groups`, `animations`, `sounds`, `textures`, `hitbox`, `hitzones`, `lockable`,
 `invulnerable`, `wreck-seconds`, `explosion-power`) in `core/VehicleType`.
 
+## Units (0.2.0)
+
+Every number in `config.yml` and the vehicle YAMLs uses one unit system; the plugin converts to per-tick values in
+exactly one place (`physics/Units`).
+
+| Quantity | Unit | Example key |
+|---|---|---|
+| distance, step height, draft | blocks (1 block = 1 m) | `step-height: 0.6` |
+| speed | blocks/second (x 3.6 = km/h) | `max-speed: 27` |
+| acceleration, gravity | blocks/second^2 | `physics.gravity: 32` |
+| mass | kilograms | `mass: 2200` |
+| force | newtons (1 N on 1 kg = 1 block/s^2) | `engine-force: 10000` |
+| angle | degrees | `steer-angle: 32`, `max-tilt: 22` |
+| turn rates | degrees/second | `max-yaw-rate: 70` |
+| grip | 1/second (sideways speed decays by e^-grip*t) | `lateral-grip: 8` |
+| fuel | units; consumption in units/second at full load | `fuel.consumption: 0.3` |
+
+Safety nets: NaN/Infinity guard, a per-tick position-delta cap, and an emergency freeze (logged once) when a vehicle
+goes faster than 3x its `max-speed`. `physics.max-speed-cap` (80 blocks/s) bounds every vehicle.
+`physics.speed-limit-by-chunk-loading` (default on) cuts the top speed to `unloaded-speed-factor` (25%) while the
+chunks 2-4 s ahead are not loaded or still generating, so nobody outruns the server.
+
+## Tuning guide
+
+**Cars, trucks, tanks** (`class: wheeled` / `tracked`):
+
+| Key | Meaning | Pickup | Truck | Tank |
+|---|---|---|---|---|
+| `mass` | kg | 2200 | 6500 | 22000 |
+| `engine-force` | N at standstill; falls off as (1 - (v/max)^2), so the engine itself caps the speed | 10000 | 17500 | 47000 |
+| `max-speed` / `max-reverse-speed` | blocks/s | 27 / 8 | 25 / 6 | 14 / 5 |
+| `rolling-resistance` | coefficient (x 9.81 = blocks/s^2) | 0.015 | 0.018 | 0.03 |
+| `drag-coefficient` | N per (blocks/s)^2 | 0.45 | 1.2 | 2.8 |
+| `brake-force` / `handbrake-force` / `parking-brake-force` | N | 19000 / 22000 / mass x 6 | | |
+| `lateral-grip` / `drift-grip` | 1/s; only the sideways component is damped | 8 / 1.2 | 7 / 1.0 | 12 |
+| `steer-angle`, `steer-falloff`, `max-yaw-rate` | degrees, share lost at max speed, degrees/s | 32, 0.85, 60 | | |
+| `neutral-turn-rate` | tracked: degrees/s on the spot | | | 32 |
+| `wheelbase`, `wheel-radius` | blocks (default: from the wheel locators) | | | |
+| `auto-start-engine` | engine starts when a driver sits down / presses W or S | true | | |
+| `fuel.initial-fuel` | percent of the tank a new vehicle holds | 100 | | |
+
+Rule of thumb: time to 80% of max speed is about `1.1 x max-speed x mass / engine-force` seconds. The defaults give a
+pickup 6-8 s and a truck 10-12 s (both checked by unit tests). At startup and on `/sbv reload` every ground type is
+simulated for 3 s of full throttle; a type below 20% of its max speed gets a console warning naming the cause.
+
+**Helicopters**: `max-speed` (horizontal blocks/s - quadratic drag makes full cyclic level off exactly there),
+`climb-rate`, `descent-rate`, `max-yaw-rate`, `max-tilt` (rotor disc, degrees), `tilt-rate-deg`, `vertical-accel`,
+`spool-time`, `autorotation-descent`, `hover-settle-time` (seconds from full speed to hover after letting go), hard
+clamps `max-horizontal-speed`, `max-climb-speed`, `max-descent-speed`, `auto-stabilise`.
+
+**Planes**: `engine-force` (thrust, N; drag is sized so full throttle levels off at `max-speed`), `stall-speed`,
+`min-takeoff-speed`, `lift`, `pitch-rate`, `roll-rate`, `max-yaw-rate` (degrees/s), `throttle-rate` (per second),
+`alignment` (1/s), clamps `max-climb-speed`, `max-descent-speed`.
+
+**Boats**: `engine-force`, `max-speed`, `max-reverse-speed`, `yaw-rate` (degrees/s), `draft`, `buoyancy` (1/s),
+`water-drag` (N per (blocks/s)^2), `planing-speed`, `planing-pitch`, `rudder`, `lateral-grip`.
+
+`/sbv debug physics` while riding toggles a per-tick line (every `debug.physics-interval-ticks`): driver seat,
+raw input, engine, fuel, grounded, forward/lateral speed (blocks/s and km/h), engine/drag/rolling/brake
+accelerations, collision result, the active clamp, and a plain-English "why not moving" naming the first failing link.
+
+## Shader HUD
+
+Drivers and pilots get textured gauges: a speedometer (needle + 3-digit readout in km/h or mph + unit), a fuel bar
+or fuel arc (green / yellow / red, blinking warning under 15%, dark face and engine-off icon when empty) and, for
+aircraft, a vertical-speed indicator, an artificial horizon (roll) with a pitch bar and a 4-digit altimeter.
+Gunners and passengers keep the text line. Per player: `/sbv hud shader|text|off`, `/sbv hud units kmh|mph`
+(saved in `data/hud-players.yml`; defaults `hud.mode`, `hud.units`).
+
+**How it works.** The plugin sends the HUD as action-bar text in its own fonts (`superbvehicles:hud_<skin>`); every
+glyph carries data in its text colour, and modified core text shaders (vanilla 26.3 `text.vsh` / `text.fsh` with an
+added `IS_GUI`-only block) move each marked glyph to its place on screen, rotate needles, cut fill gauges and blink
+icons with `GameTime`. Glyph shadows are fully transparent. Values are smoothed server-side and re-sent only when they
+change (every `hud.update-ticks`, plus a keep-alive). Plugin messages to a rider are appended to the HUD line for
+`hud.flash-ticks` instead of replacing it. The HUD clears on dismount, death, quit and destruction.
+
+**Encoding** (`hud/HudEncoding`):
+
+| Channel | Bits | Meaning |
+|---|---|---|
+| R | `11111101` (253) | marker |
+| G | `101` + 5 bits | marker (top 3 bits) + element id 0..31 |
+| B | 8 bits | value: fraction 0..1, or angle = value/255 x 360 - 180 degrees, or offset (0.5 = centre) |
+
+Only text colours `#FDA000`-`#FDBFFF` are HUD data. Element ids and their kinds are listed in `hud/HudLayout`
+(ground profile 0-12, aircraft profile 13-31).
+
+**Placement.** `hud.profiles.ground` and `hud.profiles.aircraft`: `anchor` (bottom-right default, also bottom-left,
+top-right, top-left, bottom-center), `offset` [x, y] in GUI pixels, `scale`, `opacity`. GUI pixels scale with the GUI
+scale like the vanilla hotbar, so the layout holds at every resolution. Rebuild the pack after changing placement
+(`/sbv reload`).
+
+**Skins.** `hud-skin: military | civilian | aircraft` per vehicle; `gauge: {max-speed (blocks/s at full scale),
+sweep (degrees), redline (0..1), fuel: bar | arc}`. Over the redline the needle turns red and jitters slightly.
+
+**Delivery and fallback.** The HUD is a SECOND resource pack (`pack/SuperbVehicles-hud.zip`, pack format 97 only),
+sent next to the models pack, so a client that cannot use it still has every vehicle model. A player only switches to
+gauges after their client reports the HUD pack as successfully loaded; a failed, declined or discarded HUD pack puts
+that player on the text HUD for the session. The shaders are written for Minecraft 26.3 and are only built when the
+server runs 26.3 (`hud.shader.minecraft-version`); behind ViaVersion, players on other client versions should use
+`/sbv hud text`. Shader mods (Iris/OptiFine-style) replace core shaders: those players see glyph images in the action
+bar instead of gauges and should use `/sbv hud text`. In `url` mode also set `pack.host.hud-url`; `folder` mode never
+merges the shaders into a foreign pack.
+
+**Shader safety checklist** (checked at every pack build; any failure = no HUD pack, text HUD for everyone):
+
+1. The shader files are the vanilla 26.3 files with additions only; every addition sits inside `#ifdef IS_GUI`, so
+   world text (signs, name tags, text displays) runs the vanilla code.
+2. Inside GUI text, only vertices whose colour is in the marker range are touched; every other GUI text (chat,
+   tooltips, scoreboard, titles) runs the vanilla path.
+3. 26.3 syntax: `#version 330`, `#include` (not `#moj_import`), `layout(location)` on every varying (ours is 4),
+   the OIT structure untouched.
+4. No colour the plugin sends (messages.yml, the 16 named colours) falls in the marker range.
+5. `pack.mcmeta` valid with `min_format` >= 65; every font provider points to an existing texture.
+6. Development check (not run on the server): both shaders compiled and linked for every define variant (`IS_GUI`,
+   `IS_GUI IS_GRAYSCALE`, world, `IS_SEE_THROUGH`, `OIT_ALPHA_ONLY`) with the macOS OpenGL 4.1 driver, identically
+   to the vanilla files.
+
+**Replacing the art.** The textures are generated (`hud/HudTextures`); to use your own, unzip
+`SuperbVehicles-hud.zip`, replace `assets/superbvehicles/textures/font/hud/<skin>/<glyph>.png`, keep the size ratio
+of each element (`hud/HudLayout`: dial 64x64 GUI px, needle 6x30 with the pivot at (3, 27), fuel bar 14x64, fuel arc
+48x48, icons 14x14, digits 8x11, unit 24x7, horizon 64x64, pitch bar 56x6; draw them at 4x), keep one pixel with alpha
+1/255 in the top-right corner (it makes the client measure the full glyph width), and draw fills in white (the shader
+tints them). The fuel arc runs from the bottom-left (-135 degrees, 0 = up) clockwise to the bottom-right (+135).
+Host the edited zip with `pack.host.mode: url` / `hud-url`, or ask for a skin option in the generator.
+
 ## Architecture
 
 ```
@@ -155,6 +281,11 @@ sources) regenerates the shipped placeholder models and `defaults-index.txt`.
 * **Parts float / drive backwards**: `model-yaw` (180 = nose at Blockbench north) or the group pivots; see
   `pack-report.txt` warnings and `/sbv debug hitboxes|seats`.
 * **Riders sit too high/low**: `seats.rider-offset`; parts offset vertically: `render.passenger-offset`.
+* **A vehicle does not move**: `/sbv debug physics` while sitting in it prints the first failing link (no driver
+  seat, no input, out of fuel, engine off, no ground contact, engine too weak, resistance beats thrust, blocked) and
+  the console self-check warns about types that cannot reach 20% of their max speed.
+* **Gauges do not show / glyph images in the action bar**: the HUD pack did not load for that client (shader mod,
+  other client version, declined pack) - `/sbv hud` shows the state; `/sbv hud text` switches to the text HUD.
 * **Vehicle not restored after restart**: `data/vehicles.yml` is saved every `persistence.save-interval-seconds` and on
   stop; a killed server loses the last interval.
 

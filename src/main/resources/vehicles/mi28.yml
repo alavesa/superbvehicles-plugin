@@ -4,21 +4,30 @@ class: helicopter
 model: mi28
 physics:
   mass: 8600
-  engine-power: 600
-  max-speed: 30
-  turn-rate: 2.6
-  lift: 8
-  descent: 7
-  spool-time: 5
-  cyclic-angle: 20
+  max-speed: 32
+  climb-rate: 7
+  descent-rate: 9
+  max-yaw-rate: 60
+  max-tilt: 20
+  tilt-rate-deg: 35
   cyclic-gain: 0.9
-  cyclic-thrust: 2.2
-  torque: 0.1
-  auto-stabilise: true
-  ground-effect: 0.12
+  vertical-accel: 6
+  spool-time: 5
   autorotation-descent: 7
+  ground-effect: 0.12
+  hover-settle-time: 7
+  max-horizontal-speed: 32
+  max-climb-speed: 7
+  max-descent-speed: 9
+  auto-stabilise: true
   rotor-speed: 36
-  air-drag: 0.022
+  auto-start-engine: true
+hud-skin: aircraft               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 36              # blocks/s at full scale (130 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: arc                   # bar | arc
 health: 900
 armor: { front: 30, side: 18, rear: 12, top: 8, bottom: 20 }
 fuel: { capacity: 220, consumption: 0.8 }

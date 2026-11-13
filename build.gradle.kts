@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "fi.alavesa"
-version = "0.1.0"
+version = "0.2.0"
 description = "Data-driven Blockbench vehicles for Paper 26.x"
 
 java {

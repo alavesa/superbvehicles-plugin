@@ -3,21 +3,29 @@ display-name: "<gold>A-10 Attack Aircraft"
 class: plane
 model: a10
 physics:
-  mass: 11000
-  engine-power: 1400
-  max-speed: 70
-  turn-rate: 1.8
-  stall-speed: 18
-  min-takeoff-speed: 22
+  mass: 11000                # kg
+  engine-force: 99000        # N (thrust)
+  max-speed: 55              # blocks/s
+  stall-speed: 18            # blocks/s
+  min-takeoff-speed: 22      # blocks/s
   lift: 1.1
-  pitch-rate: 2.2
-  roll-rate: 3.6
-  flap-speed: 30
-  airbrake-drag: 0.005
-  throttle-step: 0.015
-  drag: 0.0016
-  alignment: 0.08
+  pitch-rate: 45             # degrees/s
+  roll-rate: 72              # degrees/s
+  max-yaw-rate: 40           # degrees/s
+  flap-speed: 30             # blocks/s
+  airbrake-drag: 3.0         # blocks/s^2 extra at max speed
+  throttle-rate: 0.3         # throttle fraction per second
+  alignment: 1.6             # 1/s
+  max-climb-speed: 25
+  max-descent-speed: 45
   turn-gain: 1.0
+  auto-start-engine: true
+hud-skin: aircraft               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 61              # blocks/s at full scale (220 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: arc                   # bar | arc
 health: 700
 armor: { front: 20, side: 12, rear: 10, top: 6, bottom: 25 }
 fuel: { capacity: 300, consumption: 1.0 }

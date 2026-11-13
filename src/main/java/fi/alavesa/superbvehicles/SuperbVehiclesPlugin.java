@@ -51,6 +51,7 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         types.load(new File(getDataFolder(), "vehicles"));
         for (String e : types.errors) getLogger().warning("vehicles/: " + e);
         getLogger().info(types.all().size() + " vehicle type(s): " + types.ids());
+        selfCheck();
         items = new fi.alavesa.superbvehicles.core.Items(this);
         damage = new fi.alavesa.superbvehicles.damage.DamageModel(this);
         projectiles = new fi.alavesa.superbvehicles.weapon.ProjectileManager(this);
@@ -105,7 +106,16 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         packBuilding = true;
         PackBuilder builder = new PackBuilder(getDataFolder(), List.copyOf(types.all()), getConfig(), getLogger());
         final PackBuilder.Result[] box = new PackBuilder.Result[1];
-        sched.asyncThen(() -> { try { box[0] = builder.build(); } catch (Exception e) { throw new RuntimeException(e); } }, err -> {
+        final fi.alavesa.superbvehicles.pack.HudPackBuilder.Result[] hudBox = new fi.alavesa.superbvehicles.pack.HudPackBuilder.Result[1];
+        boolean buildHud = hud == null || hud.shaderSupported();
+        java.util.List<Integer> colours = pluginColours();
+        fi.alavesa.superbvehicles.hud.HudLayout layout = fi.alavesa.superbvehicles.hud.HudLayout.of(getConfig().getConfigurationSection("hud"));
+        File hudZip = new File(new File(getDataFolder(), "pack"), "SuperbVehicles-hud.zip");
+        sched.asyncThen(() -> {
+            try { box[0] = builder.build(); } catch (Exception e) { throw new RuntimeException(e); }
+            if (buildHud) { try { hudBox[0] = new fi.alavesa.superbvehicles.pack.HudPackBuilder(hudZip, layout, colours).build(); } catch (Exception e) { getLogger().warning("Shader HUD pack build failed: " + e + " - players get the text HUD"); } }
+            else hudZip.delete();
+        }, err -> {
             packBuilding = false;
             if (err != null) { getLogger().severe("Pack build failed: " + err.getCause()); if (then != null) then.accept(null); return; }
             PackBuilder.Result r = box[0];
@@ -114,9 +124,30 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
             getLogger().info("Pack built: " + r.files() + " files, " + (r.bytes() / 1024) + " KB in " + r.millis() + " ms, " + r.rigs().size() + " model(s)" + (r.warnings().isEmpty() ? "" : ", " + r.warnings().size() + " warning(s) - see pack-report.txt"));
             for (String w : r.warnings()) getLogger().warning("pack: " + w);
             if (vehicles != null) vehicles.rigsChanged();
+            var hr = hudBox[0];
+            if (hr != null) {
+                if (hr.problems().isEmpty()) { hud.setAdvances(hr.advances()); getLogger().info("Shader HUD pack built: " + (hr.bytes() / 1024) + " KB (sent as a second pack; clients that cannot load it fall back to the text HUD)."); }
+                else for (String pr : hr.problems()) getLogger().warning("Shader HUD pack NOT built: " + pr);
+            } else if (!buildHud) getLogger().info("Shader HUD disabled (hud.shader.enabled false, or this server is not Minecraft " + getConfig().getString("hud.shader.minecraft-version", "26.3") + ") - text HUD only.");
             host.packChanged();
             if (then != null) then.accept(r);
         });
+    }
+
+    /** Simulate every vehicle type briefly on a flat floor and warn about types that would barely move. */
+    public void selfCheck() {
+        for (fi.alavesa.superbvehicles.core.VehicleType t : types.all()) {
+            try { String w = fi.alavesa.superbvehicles.physics.PhysicsSelfCheck.any(t); if (w != null) getLogger().warning("self-check: " + w); }
+            catch (Exception e) { getLogger().warning("self-check of " + t.id + " failed: " + e); }
+        }
+    }
+
+    /** Colours this plugin itself sends (messages.yml, named colours): none may fall in the HUD marker range. */
+    private java.util.List<Integer> pluginColours() {
+        java.util.List<Integer> out = new java.util.ArrayList<>();
+        for (net.kyori.adventure.text.format.NamedTextColor c : net.kyori.adventure.text.format.NamedTextColor.NAMES.values()) out.add(c.value());
+        for (String s : messages.rawAll()) out.addAll(fi.alavesa.superbvehicles.pack.HudPackBuilder.colorsIn(s));
+        return out;
     }
 
     public Keys keys() { return keys; }

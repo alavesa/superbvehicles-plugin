@@ -4,13 +4,25 @@ class: wheeled
 model: sodayo_mg
 physics:
   mass: 2600
-  engine-power: 200
-  max-speed: 22
-  reverse-speed: 8
-  turn-rate: 3.0
+  engine-force: 11500
+  max-speed: 26
+  max-reverse-speed: 8
+  rolling-resistance: 0.015
+  drag-coefficient: 0.5
+  brake-force: 21000
+  handbrake-force: 26000
+  lateral-grip: 8
+  drift-grip: 1.2
+  steer-angle: 31
   step-height: 0.6
-  grip: 0.36
-  gears: [6, 11, 16, 22]
+  gears: [7, 13, 19, 26]
+  auto-start-engine: true
+hud-skin: military               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 33              # blocks/s at full scale (120 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: bar                   # bar | arc
 health: 300
 armor: { front: 5, side: 4, rear: 3, top: 2 }
 fuel: { capacity: 90, consumption: 0.32 }

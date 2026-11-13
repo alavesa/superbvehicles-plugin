@@ -6,17 +6,28 @@ model: truck
 model-yaw: 180            # the model's Blockbench north faces forward
 scale: 1.0
 physics:
-  mass: 6500
-  engine-power: 260
-  max-speed: 18           # blocks per second
-  reverse-speed: 6
-  turn-rate: 2.4
-  step-height: 0.7
-  brake: 12
-  grip: 0.3
-  gears: [4, 8, 12, 18]
+  mass: 6500                 # kg
+  engine-force: 17500        # N at standstill (falls off toward max-speed)
+  max-speed: 25              # blocks/s (x3.6 = km/h)
+  max-reverse-speed: 6       # blocks/s
+  rolling-resistance: 0.018  # coefficient (x9.81 = blocks/s^2)
+  drag-coefficient: 1.2      # N per (blocks/s)^2
+  brake-force: 52000         # N
+  handbrake-force: 60000     # N
+  lateral-grip: 7            # 1/s
+  drift-grip: 1.0            # 1/s under the handbrake
+  steer-angle: 30            # degrees
+  step-height: 0.7           # blocks
+  gears: [5, 10, 16, 25]     # blocks/s per gear (sound/HUD)
   idle-rpm: 700
   max-rpm: 3200
+  auto-start-engine: true
+hud-skin: civilian               # shader HUD texture set: military | civilian | aircraft
+gauge:
+  max-speed: 31              # blocks/s at full scale (110 km/h)
+  sweep: 270                 # needle sweep in degrees
+  redline: 0.85              # fraction of full scale where the needle turns red and jitters
+  fuel: bar                   # bar | arc
 health: 450
 armor: { front: 8, side: 5, rear: 4, top: 3 }
 fuel: { capacity: 160, consumption: 0.35 }
