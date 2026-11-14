@@ -15,6 +15,10 @@ physics:
   planing-pitch: 7           # degrees
   rudder: 1.1
   lateral-grip: 2.5          # 1/s
+  step-height: 0.6           # blocks: runs up slabs and shores
+  land-friction: 9           # blocks/s^2 on dry land
+  land-grace: 3              # seconds of engine push toward the water before the boat is stranded
+  land-push: 13              # blocks/s^2
   auto-start-engine: true
 hud-skin: civilian               # shader HUD texture set: military | civilian | aircraft
 gauge:

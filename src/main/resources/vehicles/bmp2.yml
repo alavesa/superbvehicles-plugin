@@ -12,7 +12,7 @@ physics:
   brake-force: 90000
   lateral-grip: 12
   neutral-turn-rate: 38      # degrees/s on the spot
-  step-height: 1.1
+  step-height: 1.1           # blocks: climbs slabs, paths and full blocks
   idle-rpm: 600
   max-rpm: 2600
   auto-start-engine: true

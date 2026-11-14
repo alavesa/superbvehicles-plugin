@@ -87,6 +87,14 @@ public final class SbvCommand {
         for (String m : new String[]{"shader", "text", "off"}) hud.then(Commands.literal(m).executes(c -> hudMode(c, m)));
         hud.then(Commands.literal("units").then(Commands.literal("kmh").executes(c -> hudUnits(c, false))).then(Commands.literal("mph").executes(c -> hudUnits(c, true))));
         root.then(hud);
+        root.then(admin(Commands.literal("seatoffset"))
+            .then(Commands.argument("type", StringArgumentType.word()).suggests(typeIds()).executes(c -> seatOffsetShow(c, null))
+                .then(Commands.argument("seat", StringArgumentType.word()).suggests(seatNames()).executes(c -> seatOffsetShow(c, StringArgumentType.getString(c, "seat")))
+                    .then(Commands.literal("reset").executes(c -> seatOffsetSet(c, 0, 0, 0, false)))
+                    .then(Commands.literal("add").then(Commands.argument("right", DoubleArgumentType.doubleArg(-8, 8)).then(Commands.argument("up", DoubleArgumentType.doubleArg(-8, 8)).then(Commands.argument("forward", DoubleArgumentType.doubleArg(-8, 8))
+                        .executes(c -> seatOffsetSet(c, DoubleArgumentType.getDouble(c, "right"), DoubleArgumentType.getDouble(c, "up"), DoubleArgumentType.getDouble(c, "forward"), true))))))
+                    .then(Commands.argument("right", DoubleArgumentType.doubleArg(-8, 8)).then(Commands.argument("up", DoubleArgumentType.doubleArg(-8, 8)).then(Commands.argument("forward", DoubleArgumentType.doubleArg(-8, 8))
+                        .executes(c -> seatOffsetSet(c, DoubleArgumentType.getDouble(c, "right"), DoubleArgumentType.getDouble(c, "up"), DoubleArgumentType.getDouble(c, "forward"), false))))))));
         return root;
     }
 
@@ -95,7 +103,7 @@ public final class SbvCommand {
     private void help(CommandSender s) {
         s.sendMessage(Component.text("SuperbVehicles " + plugin.getPluginMeta().getVersion(), NamedTextColor.GOLD));
         s.sendMessage(Component.text("/sbv give <type> [player] [amount] | spawn <type> [x y z] | remove [radius] | removeall [type] | list | info", NamedTextColor.GRAY));
-        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n> | hud [shader|text|off|units kmh|mph]", NamedTextColor.GRAY));
+        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n> | hud [shader|text|off|units kmh|mph] | seatoffset <type> <seat> <r> <u> <f>", NamedTextColor.GRAY));
         s.sendMessage(Component.text("/sbv reload | pack [rebuild|send|url] | import <file.bbmodel> | item fuel|ammo|repair | debug hitboxes|physics|seats|perf", NamedTextColor.GRAY));
     }
 
@@ -248,6 +256,80 @@ public final class SbvCommand {
         plugin.hud().setMph(p, mph);
         plugin.messages().send(p, "hud-units", Messages.str("units", mph ? "mph" : "km/h"));
         return 1;
+    }
+
+    private SuggestionProvider<CommandSourceStack> seatNames() {
+        return (ctx, b) -> {
+            VehicleType t;
+            try { t = plugin.types().get(StringArgumentType.getString(ctx, "type")); } catch (IllegalArgumentException e) { t = null; }
+            if (t != null) for (VehicleType.Seat st : t.seats) { if (st.name.toLowerCase(Locale.ROOT).startsWith(b.getRemainingLowerCase())) b.suggest(st.name); }
+            return b.buildFuture();
+        };
+    }
+
+    private VehicleType.Seat findSeat(VehicleType t, String key) {
+        for (VehicleType.Seat st : t.seats) if (st.name.equalsIgnoreCase(key)) return st;
+        try { int n = Integer.parseInt(key); if (n >= 1 && n <= t.seats.size()) return t.seats.get(n - 1); } catch (NumberFormatException ignored) { }
+        return null;
+    }
+
+    /** /sbv seatoffset <type> [seat]: the seats of a type, their locators and offsets. */
+    private int seatOffsetShow(CommandContext<CommandSourceStack> c, String seatKey) {
+        VehicleType t = plugin.types().get(StringArgumentType.getString(c, "type"));
+        if (t == null) { plugin.messages().send(sender(c), "unknown-type", Messages.str("type", StringArgumentType.getString(c, "type"))); return 0; }
+        var rig = plugin.types().rigOf(t);
+        for (int i = 0; i < t.seats.size(); i++) {
+            VehicleType.Seat st = t.seats.get(i);
+            if (seatKey != null && st != findSeat(t, seatKey)) continue;
+            boolean inModel = rig != null && (rig.model.locator(st.locator) != null || rig.model.bone(st.locator) != null);
+            sender(c).sendMessage(Component.text(String.format(Locale.ROOT, "%d. %s (%s) locator %s%s - offset right %.2f up %.2f forward %.2f blocks",
+                i + 1, st.name, st.role.name().toLowerCase(Locale.ROOT), st.locator, inModel ? "" : " (NOT in the model: placed at the hull centre)", st.offset[0], st.offset[1], st.offset[2]), inModel ? NamedTextColor.GRAY : NamedTextColor.YELLOW));
+        }
+        sender(c).sendMessage(Component.text("/sbv seatoffset <type> <seat> <right> <up> <forward> | add <r> <u> <f> | reset  (blocks; applies to every " + t.id + " at once)", NamedTextColor.DARK_GRAY));
+        return 1;
+    }
+
+    /** Set (or add to) a seat offset for every vehicle of the type, live, and save it to the type's YAML. */
+    private int seatOffsetSet(CommandContext<CommandSourceStack> c, double r, double u, double f, boolean add) {
+        VehicleType t = plugin.types().get(StringArgumentType.getString(c, "type"));
+        if (t == null) { plugin.messages().send(sender(c), "unknown-type", Messages.str("type", StringArgumentType.getString(c, "type"))); return 0; }
+        String key = StringArgumentType.getString(c, "seat");
+        VehicleType.Seat st = findSeat(t, key);
+        if (st == null) { sender(c).sendMessage(Component.text("No seat '" + key + "' on " + t.id + ".", NamedTextColor.RED)); return 0; }
+        double[] o = st.offset;
+        if (add) { o[0] += r; o[1] += u; o[2] += f; } else { o[0] = r; o[1] = u; o[2] = f; }
+        for (int i = 0; i < 3; i++) o[i] = Math.round(o[i] * 1000) / 1000.0;
+        for (Vehicle v : plugin.vehicles().all()) if (v.type == t && v.spawned()) v.tickSeats();
+        String saved = saveSeatOffset(t, st);
+        plugin.messages().send(sender(c), "seat-offset-set", Messages.str("type", t.id), Messages.str("seat", st.name),
+            Messages.str("offset", String.format(Locale.ROOT, "%.3f %.3f %.3f", o[0], o[1], o[2])), Messages.str("saved", saved));
+        return 1;
+    }
+
+    private String saveSeatOffset(VehicleType t, VehicleType.Seat st) {
+        if (t.source == null || !t.source.isFile()) return "live only (type registered by another plugin)";
+        try {
+            org.bukkit.configuration.file.YamlConfiguration y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(t.source);
+            String base = y.contains("seats") ? "" : t.id + ".";
+            java.util.List<java.util.Map<?, ?>> seats = y.getMapList(base + "seats");
+            java.util.List<java.util.Map<String, Object>> out = new java.util.ArrayList<>();
+            boolean found = false;
+            for (int i = 0; i < seats.size(); i++) {
+                java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                for (var e : seats.get(i).entrySet()) m.put(String.valueOf(e.getKey()), e.getValue());
+                String name = String.valueOf(m.getOrDefault("name", i == 0 ? "driver" : "seat" + (i + 1)));
+                if (i == st.index || name.equalsIgnoreCase(st.name)) {
+                    if (st.offset[0] == 0 && st.offset[1] == 0 && st.offset[2] == 0) m.remove("offset");
+                    else m.put("offset", java.util.List.of(st.offset[0], st.offset[1], st.offset[2]));
+                    found = true;
+                }
+                out.add(m);
+            }
+            if (!found) return "live only (seat not found in " + t.source.getName() + ")";
+            y.set(base + "seats", out);
+            y.save(t.source);
+            return "saved to vehicles/" + t.source.getName();
+        } catch (Exception e) { return "live only (could not save: " + e.getMessage() + ")"; }
     }
 
     private int seat(CommandContext<CommandSourceStack> c) {

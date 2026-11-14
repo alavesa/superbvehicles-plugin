@@ -128,31 +128,26 @@ public abstract class VehiclePhysics {
         return WheeledVehicleController.planeAngles(fl, fr, bl, br, halfLength, halfWidth);
     }
 
-    /** Ground follow for non-wheeled classes resting on land (boats beached, aircraft on skids/wheels). */
-    protected void followGround(BlockCollider col, double rate, double maxTilt) {
-        Obb h = v.hull();
-        double hl = h.half.z * 0.85, hw = h.half.x * 0.85;
-        Vector3d f = v.pose.forwardFlat(), r = v.pose.rightFlat();
-        double[][] corners = {{-hw, hl}, {hw, hl}, {-hw, -hl}, {hw, -hl}};
-        double[] hts = new double[4];
-        int touching = 0;
-        double probeUp = t.stepHeight * t.scale + 0.3;
-        for (int i = 0; i < 4; i++) {
-            Vector3d p = new Vector3d(v.pose.x, v.pose.y, v.pose.z).add(new Vector3d(r).mul(corners[i][0])).add(new Vector3d(f).mul(corners[i][1]));
-            double g = col.groundAt(p.x, v.pose.y, p.z, probeUp, 3.0);
-            if (Double.isNaN(g)) hts[i] = v.pose.y - 3.0; else { hts[i] = g; if (v.pose.y - g <= 0.35) touching++; }
-        }
-        s.wheelContact = touching / 4.0;
-        double[] ang = planeAngles(hts[0], hts[1], hts[2], hts[3], hl, hw);
-        s.bodyPitchTarget = Pose.clamp(ang[0], -maxTilt, maxTilt);
-        s.bodyRollTarget = Pose.clamp(ang[1], -maxTilt, maxTilt);
-        s.onGround = touching >= 2 && s.vel.y <= 0.5;
-        if (s.onGround) {
-            double target = Math.max((hts[0] + hts[1] + hts[2] + hts[3]) / 4, Math.max(Math.max(hts[0], hts[1]), Math.max(hts[2], hts[3])) - 0.9);
-            v.pose.y = target > v.pose.y ? Math.min(target, v.pose.y + 0.3) : Pose.approach(v.pose.y, target, rate);
-            if (Math.abs(v.pose.y - target) < 0.002) v.pose.y = target;
-            s.vel.y = Math.min(0, s.vel.y);
-        }
-        s.groundClearance = v.pose.y - (hts[0] + hts[1] + hts[2] + hts[3]) / 4;
+    /**
+     * Ground contact for boats on land and aircraft on the ground, answered by the collider (see GroundContact): the
+     * box rests on the highest block under it, is snapped down a step when it was on the ground, and the four corner
+     * heights only tilt the visible body. Returns true when on the ground.
+     */
+    protected boolean followGround(BlockCollider col, double stepDown, double maxTilt) {
+        boolean wasGround = s.onGround;
+        double yBefore = v.pose.y;
+        boolean on;
+        if (wasGround && s.vel.y <= 0) {
+            double dy = GroundContact.snapDown(col, v.hull(), Math.max(0.06, stepDown));
+            on = !Double.isNaN(dy);
+            if (on) v.pose.y += dy;
+        } else on = s.vel.y <= 0.5 && GroundContact.contact(col, v.hull(), 0.06);
+        s.onGround = on;
+        if (on) s.vel.y = 0;
+        double jump = v.pose.y - yBefore;
+        if (wasGround && on && Math.abs(jump) > 0.04 && Math.abs(jump) <= stepDown + 0.1) s.visualYOffset -= jump;
+        double[] att = GroundContact.attitude(col, v.pose, v.hull(), t.stepHeight * t.scale + 0.1, 3.0, maxTilt);
+        s.bodyPitchTarget = att[0]; s.bodyRollTarget = att[1]; s.wheelContact = att[2];
+        return on;
     }
 }

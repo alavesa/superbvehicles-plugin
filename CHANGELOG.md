@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 - 2026-11-14
+
+### Fixed
+- **Vehicles got stuck at slabs and small blocks.** The ride height came from the average of four corner probes; half
+  on a slab, that average lowered the flat collision box into the slab and from inside a block the collider refused to
+  move. Ground contact now comes from the collider itself: the box rests on the highest block under it, is snapped down
+  steps so it stays on the ground, and the corners only tilt the visible body. The collision skin no longer sits on the
+  bottom face (vehicles rested 2 cm into the floor).
+- Steps are eased visually (body and riders) instead of snapping up a slab in one tick.
+
+### Changed
+- Default `step-height` 1.05 for cars and trucks (slabs, paths, stairs and full blocks), 1.1 for tracked vehicles.
+- Boats: new model. They run up slabs and shores (`step-height`), slow down hard on land (`land-friction`), get
+  `land-grace` seconds (3) of engine push toward the water (`land-push`), then they are stranded. Driver messages when
+  running aground and when stranded.
+- Seats: `offset` is now in blocks [right, up, forward]. New `/sbv seatoffset <type> <seat> <r> <u> <f> | add | reset`
+  sets it live for every vehicle of the type and saves it to the YAML.
+
+### Tests
+- 48 tests: slab strip at three angles, a slab road 4 blocks up and down, full blocks, carpet and path blocks, a
+  two-block wall, parking half on a slab; boats in open water, beaching and stranding, reversing back into the water.
+
 ## 0.3.0 - 2026-11-14
 
 ### Fixed

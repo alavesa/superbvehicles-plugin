@@ -112,6 +112,7 @@ public final class VehicleRenderer {
     public void update(boolean force) {
         if (v.root == null || !v.root.isValid()) return;
         Location loc = v.pose.location(v.world);
+        loc.add(0, v.phys.visualYOffset, 0);   // a step up/down is eased over a few ticks (physics already moved)
         loc.setYaw(0); loc.setPitch(0);
         boolean moved = lastRootLoc == null || lastRootLoc.distanceSquared(loc) > 1e-8 || lastRootLoc.getWorld() != loc.getWorld();
         if (moved) {

@@ -20,6 +20,7 @@ import java.util.List;
 public final class BlockCollider {
     /** Blocks of tolerance on each side of the hull for collision tests. */
     public static final double SKIN = 0.02;
+    static final double BOTTOM_EPS = 1e-5;
 
     public static final class Result {
         public final Vector3d moved = new Vector3d();
@@ -46,8 +47,13 @@ public final class BlockCollider {
     public Terrain terrain() { return terrain; }
     public List<BoundingBox> blockBoxes(BoundingBox region) { return terrain.boxes(region); }
 
+    /** The collision box: shrunk by SKIN on the sides and the top, NOT at the bottom - the box rests exactly on the
+     *  ground (a bottom skin let vehicles settle 2 cm into the floor). */
     static Obb shrunk(Obb hull) {
-        return new Obb(hull.center, new Vector3d(Math.max(0.01, hull.half.x - SKIN), Math.max(0.01, hull.half.y - SKIN), Math.max(0.01, hull.half.z - SKIN)), hull.rot);
+        Vector3d up = hull.axis(1);
+        // the bottom is lifted by a micro-epsilon so floating-point noise never reads "resting" as "inside the floor"
+        Vector3d c = new Vector3d(hull.center).sub(up.mul(SKIN / 2 - BOTTOM_EPS / 2));
+        return new Obb(c, new Vector3d(Math.max(0.01, hull.half.x - SKIN), Math.max(0.01, hull.half.y - SKIN / 2 - BOTTOM_EPS / 2), Math.max(0.01, hull.half.z - SKIN)), hull.rot);
     }
 
     private static boolean overlaps(Obb hull, List<BoundingBox> boxes) {

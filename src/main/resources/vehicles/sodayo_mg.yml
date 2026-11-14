@@ -14,7 +14,7 @@ physics:
   lateral-grip: 8
   drift-grip: 1.2
   steer-angle: 31
-  step-height: 0.6
+  step-height: 1.05           # blocks: climbs slabs, paths and full blocks
   gears: [7, 13, 19, 26]
   auto-start-engine: true
 hud-skin: military               # shader HUD texture set: military | civilian | aircraft

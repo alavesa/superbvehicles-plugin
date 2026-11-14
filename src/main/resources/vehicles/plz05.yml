@@ -12,7 +12,7 @@ physics:
   brake-force: 200000
   lateral-grip: 12
   neutral-turn-rate: 26      # degrees/s
-  step-height: 1.1
+  step-height: 1.1           # blocks: climbs slabs, paths and full blocks
   auto-start-engine: true
 hud-skin: military               # shader HUD texture set: military | civilian | aircraft
 gauge:

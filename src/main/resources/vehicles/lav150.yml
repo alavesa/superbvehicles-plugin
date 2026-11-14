@@ -14,7 +14,7 @@ physics:
   lateral-grip: 8
   drift-grip: 1.5
   steer-angle: 28
-  step-height: 0.8
+  step-height: 1.05           # blocks: climbs slabs, paths and full blocks
   gears: [5, 9, 13, 18]
   idle-rpm: 700
   max-rpm: 3400

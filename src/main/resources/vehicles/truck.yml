@@ -17,7 +17,7 @@ physics:
   lateral-grip: 7            # 1/s
   drift-grip: 1.0            # 1/s under the handbrake
   steer-angle: 30            # degrees
-  step-height: 0.7           # blocks
+  step-height: 1.05           # blocks: climbs slabs, paths and full blocks
   gears: [5, 10, 16, 25]     # blocks/s per gear (sound/HUD)
   idle-rpm: 700
   max-rpm: 3200

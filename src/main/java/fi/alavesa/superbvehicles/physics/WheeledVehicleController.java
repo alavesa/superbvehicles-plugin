@@ -159,7 +159,11 @@ public final class WheeledVehicleController {
         s.steer = Pose.approach(s.steer, steer, 0.35);
 
         // 1. ground contact at the current position
-        groundProbe(pose, s, col);
+        s.visualYOffset *= 0.55;                              // a step up/down is shown over ~5 ticks
+        if (Math.abs(s.visualYOffset) < 0.005) s.visualYOffset = 0;
+        Obb h0 = hull.at(pose);
+        s.inWater = col.isWater(h0.center.x, h0.center.y - h0.half.y + 0.2, h0.center.z);
+        s.onGround = s.vel.y <= 0.5 && GroundContact.contact(col, h0, 0.06);
         boolean grounded = s.onGround || s.inWater;
         r.grounded = grounded;
 
@@ -234,6 +238,7 @@ public final class WheeledVehicleController {
         double fallSpeed = -s.vel.y;
 
         // 7. integrate through the collider (the one per-tick conversion)
+        double yBefore = pose.y;
         Vector3d delta = new Vector3d(Units.perTick(s.vel.x), Units.perTick(s.vel.y), Units.perTick(s.vel.z));
         int sub = Math.max(1, (int) Math.ceil(delta.length() / 0.5));
         Vector3d step = new Vector3d(delta).div(sub);
@@ -256,10 +261,23 @@ public final class WheeledVehicleController {
         r.lostSpeed = Units.perSecond(lost);
         s.lastImpact = r.lostSpeed;
 
-        // 8. ground follow and body attitude
+        // 8. ground contact from the collider: the box rests on the highest block under it; going down a step it is
+        //    snapped down so it stays on the ground; the corner heights only tilt the visible body
         boolean wasGround = s.onGround;
-        followGround(pose, s, col);
-        s.landingSpeed = s.onGround && !wasGround ? fallSpeed : 0;
+        boolean onGround;
+        if (landed) onGround = true;
+        else if (wasGround && s.vel.y <= 0) {
+            double dy = GroundContact.snapDown(col, hull.at(pose), p.stepHeight + 0.06);
+            if (Double.isNaN(dy)) onGround = false;
+            else { pose.y += dy; onGround = true; }
+        } else onGround = GroundContact.contact(col, hull.at(pose), 0.03);
+        s.onGround = onGround;
+        if (onGround) s.vel.y = 0;
+        double jump = pose.y - yBefore;
+        if (wasGround && onGround && Math.abs(jump) > 0.04 && Math.abs(jump) <= p.stepHeight + 0.1) s.visualYOffset = Pose.clamp(s.visualYOffset - jump, -p.stepHeight - 0.1, p.stepHeight + 0.1);
+        double[] att = GroundContact.attitude(col, pose, hull.at(pose), p.stepHeight + 0.1, 3.0, p.maxTilt);
+        s.bodyPitchTarget = att[0]; s.bodyRollTarget = att[1]; s.wheelContact = att[2];
+        s.landingSpeed = onGround && !wasGround ? fallSpeed : 0;
         double lon = s.throttle * 1.2 * Math.min(1, Math.abs(vF) / Math.max(1, p.maxSpeed));
         double lat = yawRate * vF * 0.0012;
         bodyPitch = Pose.approach(bodyPitch, s.onGround ? s.bodyPitchTarget - lon : airPitch(s), s.onGround ? 0.3 : 0.08);
@@ -298,62 +316,6 @@ public final class WheeledVehicleController {
 
     private static boolean finite(Vector3d v) { return Double.isFinite(v.x) && Double.isFinite(v.y) && Double.isFinite(v.z) && v.lengthSquared() > 0.5; }
     private double airPitch(PhysicsState s) { return Pose.clamp(Math.toDegrees(Math.atan2(s.vel.y, Math.max(2.0, Math.abs(s.speed)))), -60, 60); }
-
-    /** Contact check before the forces: are the hull's corners on the ground (or in water)? */
-    private void groundProbe(Pose pose, PhysicsState s, BlockCollider col) {
-        Obb h = hull.at(pose);
-        s.inWater = col.isWater(h.center.x, h.center.y - h.half.y + 0.2, h.center.z);
-        int touching = 0;
-        for (double[] c : corners(h)) {
-            Vector3d pt = cornerPoint(pose, c);
-            double g = col.groundAt(pt.x, pose.y, pt.z, p.stepHeight + 0.1, p.groundTolerance + 0.05);
-            if (!Double.isNaN(g) && pose.y - g <= p.groundTolerance && g - pose.y <= p.stepHeight + 0.1) touching++;
-        }
-        s.wheelContact = touching / 4.0;
-        s.onGround = touching >= 2 && s.vel.y <= 0.5;
-    }
-
-    /** After the move: ride height on the contact points and the ground plane for the body attitude. */
-    private void followGround(Pose pose, PhysicsState s, BlockCollider col) {
-        Obb h = hull.at(pose);
-        double[] hts = new double[4];
-        int touching = 0;
-        double[][] cs = corners(h);
-        for (int i = 0; i < 4; i++) {
-            Vector3d pt = cornerPoint(pose, cs[i]);
-            double g = col.groundAt(pt.x, pose.y, pt.z, p.stepHeight + 0.1, 3.0);
-            if (Double.isNaN(g)) hts[i] = pose.y - 3.0;
-            else { hts[i] = g; if (pose.y - g <= p.groundTolerance && g - pose.y <= p.stepHeight + 0.1) touching++; }
-        }
-        s.wheelContact = touching / 4.0;
-        double hl = h.half.z * 0.85, hw = h.half.x * 0.85;
-        double[] ang = planeAngles(hts[0], hts[1], hts[2], hts[3], hl, hw);
-        s.bodyPitchTarget = Pose.clamp(ang[0], -p.maxTilt, p.maxTilt);
-        s.bodyRollTarget = Pose.clamp(ang[1], -p.maxTilt, p.maxTilt);
-        boolean contact = touching >= 2 && s.vel.y <= 0.5;
-        if (contact) {
-            double target = Math.max(Math.max(hts[0], hts[1]), Math.max(hts[2], hts[3]));
-            double avg = (hts[0] + hts[1] + hts[2] + hts[3]) / 4;
-            target = Math.max(avg, target - 0.9);
-            if (target > pose.y) pose.y = Math.min(target, pose.y + Math.max(0.05, p.stepHeight * 0.6));      // climb onto a step
-            else pose.y = Pose.approach(pose.y, target, p.suspensionRate);   // settle down
-            if (Math.abs(pose.y - target) < 0.002) pose.y = target;
-            s.vel.y = 0;
-        }
-        s.onGround = contact;
-        s.groundClearance = pose.y - (hts[0] + hts[1] + hts[2] + hts[3]) / 4;
-    }
-
-    /** {right, forward} offsets (blocks) of the four probe corners: FL FR BL BR. */
-    private static double[][] corners(Obb h) {
-        double hl = h.half.z * 0.85, hw = h.half.x * 0.85;
-        return new double[][]{{-hw, hl}, {hw, hl}, {-hw, -hl}, {hw, -hl}};
-    }
-
-    private static Vector3d cornerPoint(Pose pose, double[] c) {
-        Vector3d f = pose.forwardFlat(), r = pose.rightFlat();
-        return new Vector3d(pose.x, pose.y, pose.z).add(new Vector3d(r).mul(c[0])).add(new Vector3d(f).mul(c[1]));
-    }
 
     /** Body pitch/roll from four corner heights (deg, nose up / right side down positive). */
     static double[] planeAngles(double fl, double fr, double bl, double br, double halfLength, double halfWidth) {

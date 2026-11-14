@@ -195,7 +195,9 @@ public final class Vehicle {
     public Vector3d seatWorld(SeatSlot s) {
         double[] px = locatorPx(s.def.locator);
         if (px == null) px = new double[]{0, hitboxCenterPx[1] + hitboxHalfPx[1] * 0.4, 0};
-        return pose.toWorld(px[0] + s.def.offset[0], px[1] + s.def.offset[1], px[2] + s.def.offset[2], type.scale);
+        // offset in blocks right / up / forward (model forward is -Z); not scaled by the model scale
+        org.joml.Vector3d w = pose.toWorld(px[0], px[1], px[2], type.scale);
+        return w.add(pose.rotation().transform(new org.joml.Vector3d(s.def.offset[0], s.def.offset[1], -s.def.offset[2])).mul(1.0));
     }
 
     // ------------------------------------------------------------------ entities
@@ -367,6 +369,7 @@ public final class Vehicle {
         for (SeatSlot s : seats) {
             if (s.stand == null || !s.stand.isValid()) continue;
             Vector3d w = seatWorld(s);
+            w.y += phys.visualYOffset;          // riders follow the eased body, not the physics step
             Location standLoc = new Location(world, w.x, w.y - riderOffset, w.z, (float) (pose.yaw + s.def.yawOffset), 0f);
             if (s.stand.getPassengers().isEmpty()) { if (s.stand.getLocation().distanceSquared(standLoc) > 1e-6) s.stand.teleport(standLoc); }
             else s.stand.teleport(standLoc, TeleportFlag.EntityState.RETAIN_PASSENGERS);

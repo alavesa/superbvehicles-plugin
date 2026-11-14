@@ -112,6 +112,36 @@ Check the vehicle's facing: entity models are usually modelled nose to the north
 different size. Respect the licence of models you did not make (attribution, non-commercial terms) and do not
 redistribute them in public packs or repositories that the licence does not allow.
 
+### Seats
+
+Seats are placed by the model: a Blockbench locator (or a group) named like the seat's `locator` in the YAML (default
+`seat_<name>`, for example `seat_driver`) is where the rider sits. Move the locator in Blockbench and rebuild the pack
+(`/sbv reload`). On top of that, every seat has an `offset: [right, up, forward]` in blocks in the YAML, which the game
+can set for all vehicles of a type at once:
+
+```
+/sbv seatoffset truck                      # list the seats, their locators and offsets
+/sbv seatoffset truck driver 0 0.15 -0.1   # right / up / forward in blocks, applied live to every truck
+/sbv seatoffset truck 2 add 0.05 0 0       # nudge seat number 2
+/sbv seatoffset truck driver reset
+```
+
+The change is saved into `vehicles/<type>.yml` (the seat's `offset`). A seat whose locator is missing from the model is
+flagged in the listing (it sits at the hull centre until you add the locator). `seats.rider-offset` in config.yml
+moves every rider up or down if your client shows them sitting too high or low.
+
+### Slabs, blocks and roads (0.4.0)
+
+Cars, trucks and tanks climb anything up to their `step-height` (blocks): slabs, paths, carpets, stairs and with the
+default 1.05 also full blocks, so slab roads that rise and fall drive smoothly. The body rests on the highest block
+under it, goes down steps without leaving the ground, and each step is eased visually over a few ticks. Lower
+`step-height` (0.6) if vehicles should not climb full blocks.
+
+Boats run up slabs and shores too (`step-height`, default 0.6). Out of the water the hull slows at once
+(`land-friction`, 9 blocks/s^2); for `land-grace` seconds (3) the engine still pushes (`land-push`, 13 blocks/s^2) but
+only back toward the water it came from, so you can reverse or turn back. After that the boat is stranded until water
+is under it again.
+
 ### Skins
 
 ```yaml

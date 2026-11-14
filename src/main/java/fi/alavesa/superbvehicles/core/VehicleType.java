@@ -28,7 +28,8 @@ public final class VehicleType {
     public static final class Seat {
         public final int index; public final String name, locator; public final SeatRole role;
         public final List<String> weapons = new ArrayList<>();
-        public final double[] offset;        // px, added to the locator position
+        /** Blocks {right, up, forward} added to the seat locator (0.4.0; /sbv seatoffset edits it live for every vehicle of the type). */
+        public final double[] offset;
         public final double width, height;   // click box size (blocks)
         public final boolean exposed;        // the rider can be hit / shot (open seats)
         public final float yawOffset;        // rider facing offset (deg) relative to the hull

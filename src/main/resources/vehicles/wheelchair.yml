@@ -14,7 +14,7 @@ physics:
   handbrake-force: 900
   lateral-grip: 10
   steer-angle: 40
-  step-height: 0.5
+  step-height: 0.6           # blocks
   gears: [5]
   idle-rpm: 0
   max-rpm: 0

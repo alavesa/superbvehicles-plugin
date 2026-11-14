@@ -39,6 +39,7 @@ public final class PhysicsState {
     public double flareTicks;                      // countermeasure active ticks left
     public double fallSpeed;                       // max downward speed while airborne (blocks/s)
     public String activeClamp = "";                // the hard limit that capped the motion this tick (debug)
+    public double visualYOffset;                   // blocks: render-only offset that eases a step up/down over a few ticks
 
     public double horizontalSpeed() { return Math.hypot(vel.x, vel.z); }
     public double speedBps() { return vel.length(); }
