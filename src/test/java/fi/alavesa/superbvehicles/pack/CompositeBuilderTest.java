@@ -27,12 +27,15 @@ class CompositeBuilderTest {
         BbModel m = model("wheeled");
         CompositeBuilder.Output out = CompositeBuilder.build(m, "sbv", "t", Map.of(), List.of(), Map.of(), false, List.copyOf(m.animations.keySet()));
         Rig rig = out.rig();
-        // wheels (4) + turret + gun + body (idle-animated) = animatable; cab/bumper/lights fold into body
-        assertTrue(rig.animatable.contains(m.bone("wheel_fl").uuid));
+        // turret + gun + body (idle-animated) = animatable; cab/bumper/lights fold into body. Since 0.3.0 the plugin does
+        // not move wheels, so un-animated wheel groups fold into the hull too (an animation that moves them gives them a part)
+        assertFalse(rig.animatable.contains(m.bone("wheel_fl").uuid), "wheels are no longer moved by the plugin");
         assertTrue(rig.animatable.contains(m.bone("turret").uuid));
         assertTrue(rig.animatable.contains(m.bone("body").uuid));
         assertFalse(rig.animatable.contains(m.bone("hitbox_hull").uuid));
-        assertEquals(rig.animatable.size(), rig.parts.size(), "placeholder cubes are axis-aligned: one bone part per animatable bone");
+        // placeholder cubes are axis-aligned: one bone part per animatable bone, plus the root part that now holds the wheels
+        assertEquals(rig.animatable.size() + 1, rig.parts.size(), "parts: " + rig.parts.stream().map(Rig.Part::ownerName).toList());
+        assertTrue(rig.parts.stream().anyMatch(p -> p.owner == null), "the wheels live in the static root part");
         int cubes = 0; for (Rig.Part p : rig.parts) cubes += p.cubes;
         long visible = m.cubes.values().stream().filter(c -> !c.hidden).count();
         assertEquals(visible, cubes, "every visible cube is drawn exactly once");

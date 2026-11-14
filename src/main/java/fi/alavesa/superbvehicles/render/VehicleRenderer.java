@@ -32,6 +32,13 @@ import java.util.List;
  * render.interpolation-ticks, so per-tick updates look smooth.
  */
 public final class VehicleRenderer {
+    /**
+     * The client draws an item display's item turned 180 degrees about Y (DisplayRenderer.ItemDisplayRenderer.submitInner:
+     * mulPose(Axis.YP.rotation(PI)), 26.3). Without cancelling it every part was drawn rotated half a turn about its own
+     * centre - invisible on symmetric boxes, scrambled on real models (0.1.0 / 0.2.0). The right rotation applies first.
+     */
+    static final Quaternionf ITEM_FLIP = new Quaternionf(0f, 1f, 0f, 0f);
+
     private final Vehicle v;
     private final List<ItemDisplay> parts = new ArrayList<>();
     private final List<Transformation> last = new ArrayList<>();
@@ -127,17 +134,7 @@ public final class VehicleRenderer {
                 if (lastVisible.get(i) || force) { d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0, 0, 0), new Quaternionf())); lastVisible.set(i, false); last.set(i, null); }
                 continue;
             }
-            double[] pw = Mat.apply(m, part.pivot);
-            Vector3d tr = R.transform(new Vector3d(pw[0] / 16 * scale, pw[1] / 16 * scale, pw[2] / 16 * scale));
-            double[][] m3 = Mat.upper3(m);
-            double[] sc = Mat.columnScale(m3);
-            double[][] rot = new double[3][3];
-            for (int r = 0; r < 3; r++) for (int c = 0; c < 3; c++) rot[r][c] = m3[r][c] / sc[c];
-            double[][] Rv = {{R.m00, R.m10, R.m20}, {R.m01, R.m11, R.m21}, {R.m02, R.m12, R.m22}};   // JOML is column-major: m01 = row 1 of column 0
-            double[][] full = Mat.mul3(Rv, rot);
-            float[] q = Mat.quaternion(full);
-            Transformation t = new Transformation(new Vector3f((float) tr.x, (float) tr.y + yOff, (float) tr.z), new Quaternionf(q[0], q[1], q[2], q[3]),
-                new Vector3f((float) (sc[0] * scale / part.k), (float) (sc[1] * scale / part.k), (float) (sc[2] * scale / part.k)), new Quaternionf());
+            Transformation t = transformation(R, scale, part, m, yOff);
             Transformation prev = last.get(i);
             if (force || prev == null || !lastVisible.get(i) || changed(prev, t)) {
                 d.setInterpolationDelay(0);
@@ -145,6 +142,24 @@ public final class VehicleRenderer {
                 last.set(i, t); lastVisible.set(i, true);
             }
         }
+    }
+
+    /**
+     * The display transformation of one part: translation = R_vehicle * (M * pivot) / 16 * scale, left rotation =
+     * R_vehicle * rot(M), scale = column scale of M * scale / k, right rotation = {@link #ITEM_FLIP}. The client then draws
+     * the item model centred (px / 16 - 0.5), turned 180 degrees about Y, through this transformation.
+     */
+    static Transformation transformation(Matrix3d R, double scale, Rig.Part part, double[][] m, float yOff) {
+        double[] pw = Mat.apply(m, part.pivot);
+        Vector3d tr = R.transform(new Vector3d(pw[0] / 16 * scale, pw[1] / 16 * scale, pw[2] / 16 * scale));
+        double[][] m3 = Mat.upper3(m);
+        double[] sc = Mat.columnScale(m3);
+        double[][] rot = new double[3][3];
+        for (int r = 0; r < 3; r++) for (int c = 0; c < 3; c++) rot[r][c] = m3[r][c] / sc[c];
+        double[][] Rv = {{R.m00, R.m10, R.m20}, {R.m01, R.m11, R.m21}, {R.m02, R.m12, R.m22}};   // JOML is column-major: m01 = row 1 of column 0
+        float[] q = Mat.quaternion(Mat.mul3(Rv, rot));
+        return new Transformation(new Vector3f((float) tr.x, (float) tr.y + yOff, (float) tr.z), new Quaternionf(q[0], q[1], q[2], q[3]),
+            new Vector3f((float) (sc[0] * scale / part.k), (float) (sc[1] * scale / part.k), (float) (sc[2] * scale / part.k)), new Quaternionf(ITEM_FLIP));
     }
 
     private static boolean changed(Transformation a, Transformation b) {

@@ -76,10 +76,12 @@ public final class VehicleType {
     public final double wreckSeconds, explosionPower;
     public final String permissionUse, permissionSpawn;
     public final File source;
+    private final ConfigurationSection rawSection;
 
     public VehicleType(String id, ConfigurationSection s, File source) {
         this.id = id.toLowerCase(Locale.ROOT);
         this.source = source;
+        this.rawSection = s;
         displayName = s.getString("display-name", WeaponType.prettify(id));
         model = s.getString("model", this.id);
         vehicleClass = VehicleClass.parse(s.getString("class", "wheeled"));
@@ -143,6 +145,8 @@ public final class VehicleType {
     }
 
     public double physics(String key, double def) { return physicsSection.getDouble(key, def); }
+    /** A top-level number of the vehicle YAML. */
+    public double raw(String key, double def) { return source == null ? def : rawSection.getDouble(key, def); }
     public boolean physicsFlag(String key, boolean def) { return physicsSection.getBoolean(key, def); }
     public List<Double> physicsList(String key) { return physicsSection.getDoubleList(key); }
     public String sound(String key, String def) { String v = sounds.get(key); return v == null || v.isBlank() ? def : v; }

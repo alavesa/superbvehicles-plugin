@@ -30,7 +30,8 @@ public enum BoneRole {
     }
 
     /** Roles that mark a bone as moving on its own (so it needs its own display part). */
-    public boolean animatable() { return this != NONE && this != SEAT && this != MUZZLE && this != HITBOX && this != EXHAUST && this != ROOT && this != BODY; }
+    public boolean animatable() { return this != NONE && this != SEAT && this != MUZZLE && this != HITBOX && this != EXHAUST && this != ROOT && this != BODY
+        && this != WHEEL && this != TRACK_L && this != TRACK_R && this != STEER; }   // 0.3.0: wheels/tracks are animated by the model's own clips
 
     /** A wheel bone that steers: wheel_f*, wheel_front*, wheel_steer*. */
     public static boolean steeringWheel(String name) {

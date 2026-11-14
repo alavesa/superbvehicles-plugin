@@ -23,11 +23,12 @@ public final class BbModel {
     public final List<String> warnings = new ArrayList<>();
     /** Animation channel signs relative to the rest pose (Blockbench 4.x keyframes are in the Bedrock convention). */
     public double[] animRotSign = {1, 1, 1}, animPosSign = {1, 1, 1};
-    public int meshCount, hiddenCubes;
+    public int meshCount, hiddenCubes, texturelessFaces;
 
     public static final class Texture {
         public String name; public byte[] png; public double uvWidth, uvHeight; public int frameTime = 1; public boolean interpolate;
         public int width, height;   // decoded image size (0 if undecodable)
+        public byte[] mcmeta;        // an explicit <texture>.png.mcmeta sidecar (animated texture), else null
     }
 
     public static final class Face {

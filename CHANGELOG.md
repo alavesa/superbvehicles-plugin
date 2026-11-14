@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 - 2026-11-14
+
+### Fixed
+- **Models were drawn scrambled**: the client turns an item display's item 180 degrees about Y before drawing it
+  (verified in the 26.3 client); the renderer did not cancel it, so every part was drawn rotated half a turn about its
+  own centre. Invisible on the symmetric placeholders, broken on real models. Each part's display now carries the
+  inverse turn. A new end-to-end test checks every cube corner of an asymmetric model against Blockbench.
+- Importer: faces with no texture are left out (were drawn with the first texture); tall textures are no longer turned
+  into animations (a 256x512 atlas showed half its texture, flickering); textures that are not embedded are loaded from
+  PNG files next to the .bbmodel; null objects count as locators.
+
+### Changed
+- The plugin no longer spins wheels, steers them or moves tracks: animate them in the model. Driving clips play at a
+  speed-proportional rate (`animation-speed`). Un-animated wheel and track groups fold into the hull.
+- Pack report: warning above 48 parts per vehicle, count of left-out textureless faces.
+
 ## 0.2.0 - 2026-11-13
 
 ### Fixed

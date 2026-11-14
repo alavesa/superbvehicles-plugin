@@ -90,6 +90,9 @@ public final class PackBuilder {
                 for (String w : out.warnings()) warnings.add(t.model + ": " + w);
                 rigs.put(t.model, out.rig());
                 faces += out.faces();
+                long displayParts = out.rig().parts.stream().filter(pt -> !Mat.plainAxisAngleIdentity(pt.extra)).count();
+                if (out.parts() > 48) warnings.add(t.model + ": " + out.parts() + " parts = " + out.parts() + " item displays per vehicle (" + displayParts + " of them only because cubes are rotated by angles a Java model cannot hold, e.g. 7.5 or 30 degrees) - snapping those rotations to 0/22.5/45 in Blockbench, or grouping cubes that share a rotation, cuts entities");
+                if (m.texturelessFaces > 0) report.add(t.model + ": " + m.texturelessFaces + " face(s) without a texture in Blockbench left out (as Blockbench shows them)");
                 report.add(t.id + " (" + t.model + ".bbmodel): " + out.parts() + " part(s) for " + out.rig().animatable.size() + " animatable bone(s), " + m.cubes.size() + " cubes, " + out.faces() + " faces, " + m.animations.size() + " animation(s) " + m.animations.keySet() + ", locators " + m.locators.keySet());
                 for (BbModel.Animation a : m.animations.values()) for (BbModel.SoundKey sk : a.sounds) registerSound(models, sk.effect(), t.model + " animation '" + a.name + "'");
                 icon(models, t.model, t.displayName, t.id, accent(t));

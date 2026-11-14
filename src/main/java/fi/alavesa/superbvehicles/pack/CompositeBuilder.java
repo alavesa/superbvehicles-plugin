@@ -297,15 +297,11 @@ public final class CompositeBuilder {
         return false;
     }
 
+    /** An animated texture needs an explicit <texture>.png.mcmeta sidecar (BbParser reads it). Vehicle atlases are often
+     *  taller than wide (256x512); before 0.3.0 such textures were turned into 2-frame animations and the model showed
+     *  half of its texture, flickering. */
     private static void animatedTexture(Map<String, byte[]> files, String packPath, byte[] png, BbModel.Texture tex, List<String> warnings) {
-        BufferedImage img;
-        try { img = ImageIO.read(new ByteArrayInputStream(png)); } catch (Exception e) { return; }
-        if (img == null || img.getHeight() <= img.getWidth() || img.getHeight() % img.getWidth() != 0) return;
-        JsonObject anim = new JsonObject();
-        anim.addProperty("frametime", tex.frameTime);
-        if (tex.interpolate) anim.addProperty("interpolate", true);
-        JsonObject root = new JsonObject(); root.add("animation", anim);
-        files.put(packPath + ".mcmeta", GSON.toJson(root).getBytes(StandardCharsets.UTF_8));
+        if (tex.mcmeta != null) files.put(packPath + ".mcmeta", tex.mcmeta);
     }
 
     static byte[] placeholderPng(int seed) {

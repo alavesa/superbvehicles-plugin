@@ -36,10 +36,13 @@ public final class BbParser {
         String text;
         try { text = Files.readString(file.toPath()); } catch (IOException e) { throw new BbParseException(file.getName() + ": cannot read the file (" + e.getMessage() + ")"); }
         String name = file.getName().replaceAll("\\.bbmodel$", "");
-        return parse(text, name);
+        return parse(text, name, file.getParentFile());
     }
 
-    public static BbModel parse(String json, String name) throws BbParseException {
+    public static BbModel parse(String json, String name) throws BbParseException { return parse(json, name, null); }
+
+    /** @param dir the models folder: textures that are not embedded are looked up there (null = embedded only). */
+    public static BbModel parse(String json, String name, File dir) throws BbParseException {
         JsonObject root;
         try { root = JsonParser.parseString(json).getAsJsonObject(); }
         catch (Exception e) { throw new BbParseException(name + ".bbmodel is not valid JSON (" + e.getMessage() + ") - re-save it from Blockbench"); }
@@ -72,7 +75,22 @@ public final class BbParser {
                         BufferedImage img = ImageIO.read(new ByteArrayInputStream(tex.png));
                         if (img != null) { tex.width = img.getWidth(); tex.height = img.getHeight(); }
                     } catch (Exception e) { m.warnings.add("texture '" + tex.name + "' could not be decoded (" + e.getMessage() + ") - re-import the image in Blockbench"); tex.png = null; }
-                } else m.warnings.add("texture '" + tex.name + "' has no embedded image - in Blockbench, File > Save Model embeds textures; a missing one renders purple/black");
+                } else {
+                    File ext = externalTexture(dir, name, tex.name, str(t.get("path"), ""), str(t.get("relative_path"), ""));
+                    if (ext != null) {
+                        try {
+                            tex.png = java.nio.file.Files.readAllBytes(ext.toPath());
+                            BufferedImage img = ImageIO.read(new ByteArrayInputStream(tex.png));
+                            if (img != null) { tex.width = img.getWidth(); tex.height = img.getHeight(); } else { tex.png = null; m.warnings.add("texture file " + ext.getName() + " is not a readable PNG"); }
+                        } catch (IOException e) { m.warnings.add("texture file " + ext.getName() + " could not be read: " + e.getMessage()); }
+                    }
+                    if (tex.png == null) m.warnings.add("texture '" + tex.name + "' is not embedded in the .bbmodel and no " + tex.name + ".png was found next to it (models/, models/" + name + "/ or models/textures/) - save the model with the texture loaded in Blockbench, or copy the PNG there");
+                }
+                if (dir != null) {
+                    // an animated texture needs an explicit <texture>.png.mcmeta sidecar: tall vehicle atlases are NOT animation strips
+                    for (File side : new File[]{new File(dir, name + "/" + tex.name + ".png.mcmeta"), new File(dir, tex.name + ".png.mcmeta"), new File(dir, "textures/" + tex.name + ".png.mcmeta")})
+                        if (side.isFile()) { try { tex.mcmeta = java.nio.file.Files.readAllBytes(side.toPath()); } catch (IOException ignored) { } break; }
+                }
                 tex.uvWidth = num(t.get("uv_width"), m.resW); tex.uvHeight = num(t.get("uv_height"), m.resH);
                 if (tex.uvWidth <= 0) tex.uvWidth = m.resW; if (tex.uvHeight <= 0) tex.uvHeight = m.resH;
                 tex.frameTime = Math.max(1, (int) num(t.get("frame_time"), 1));
@@ -95,7 +113,7 @@ public final class BbParser {
                 String type = str(e.get("type"), "cube");
                 String ename = str(e.get("name"), type + idx);
                 String uuid = str(e.get("uuid"), "e" + idx);
-                if (type.equals("locator")) {
+                if (type.equals("locator") || type.equals("null_object")) {
                     BbModel.Locator l = new BbModel.Locator();
                     l.uuid = uuid; l.name = ename;
                     l.position = vec(e.get("position"), ename, "position", m);
@@ -131,7 +149,7 @@ public final class BbParser {
                         JsonObject fj = fo.getAsJsonObject(f);
                         BbModel.Face face = new BbModel.Face();
                         JsonElement tex = fj.get("texture");
-                        if (tex == null || tex.isJsonNull()) face.texture = -1;
+                        if (tex == null || tex.isJsonNull() || (tex.isJsonPrimitive() && tex.getAsJsonPrimitive().isBoolean())) { m.texturelessFaces++; continue; }   // no texture in Blockbench = no face
                         else if (tex.isJsonPrimitive() && tex.getAsJsonPrimitive().isNumber()) face.texture = tex.getAsInt();
                         else face.texture = texIndex.getOrDefault(tex.getAsString(), -1);
                         if (face.texture >= m.textures.size()) face.texture = m.textures.isEmpty() ? -1 : 0;
@@ -162,6 +180,20 @@ public final class BbParser {
         }
         validate(m);
         return m;
+    }
+
+    /** A texture PNG for a texture that is not embedded: models/<model>/<name>.png, models/<name>.png, models/textures/<name>.png, or the file name of its Blockbench path. */
+    static File externalTexture(File dir, String model, String texName, String path, String relPath) {
+        if (dir == null) return null;
+        java.util.List<File> c = new java.util.ArrayList<>();
+        c.add(new File(dir, model + "/" + texName + ".png")); c.add(new File(dir, texName + ".png")); c.add(new File(dir, "textures/" + texName + ".png"));
+        for (String p : new String[]{path, relPath}) {
+            if (p == null || p.isBlank()) continue;
+            String base = new File(p.replace('\\', '/')).getName();
+            c.add(new File(dir, model + "/" + base)); c.add(new File(dir, base)); c.add(new File(dir, "textures/" + base));
+        }
+        for (File f : c) if (f.isFile()) return f;
+        return null;
     }
 
     private static void outliner(JsonElement oe, BbModel.Bone parent, BbModel m, Map<String, JsonObject> groups, Map<String, BbModel.Locator> locByUuid) {

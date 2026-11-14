@@ -12,7 +12,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Procedural bone motion from the physics state: wheels spin with distance and steer, tracks creep, turret yaw and
+ * Procedural bone motion from the physics state (0.3.0: wheels, steering and tracks are NOT moved by the plugin any more -
+ * animate them with the model's own drive/reverse/left/right clips, which play at a speed-proportional rate): turret yaw and
  * barrel pitch follow the gunner, rotors and propellers spin with the engine, gear and flaps fold, control surfaces
  * deflect, damage-state groups appear and disappear with health. Written as bone deltas after the clips.
  */
@@ -26,16 +27,6 @@ public final class Procedural {
         for (BbModel.Bone b : rig.model.bones.values()) {
             BoneRole role = t.boneRoles.getOrDefault(b.name.toLowerCase(Locale.ROOT), BoneRole.of(b.name));
             switch (role) {
-                case WHEEL -> {
-                    Rig.BoneDelta d = delta(deltas, b);
-                    d.rot[0] += -s.wheelSpin;                                     // roll about the axle (x)
-                    if (BoneRole.steeringWheel(b.name)) d.rot[1] += -s.steerAngle;  // steer about y (applied before the spin in ZYX order)
-                }
-                case TRACK_L, TRACK_R -> {
-                    double travel = role == BoneRole.TRACK_L ? s.trackLeft : s.trackRight;
-                    Rig.BoneDelta d = delta(deltas, b);
-                    d.pos[2] += ((travel % 4) + 4) % 4 * 0.25 - 0.5;           // small creeping offset: reads as a moving belt
-                }
                 case ROTOR_MAIN -> delta(deltas, b).rot[1] += s.rotorAngle;
                 case ROTOR_TAIL -> delta(deltas, b).rot[0] += s.rotorAngle * 3;
                 case PROPELLER -> delta(deltas, b).rot[2] += s.propAngle;
@@ -44,7 +35,6 @@ public final class Procedural {
                 case AILERON -> { int side = BoneRole.side(b.name); delta(deltas, b).rot[0] += side * s.cyclicRoll * 25; }
                 case ELEVATOR -> delta(deltas, b).rot[0] += -s.cyclicPitch * 25;
                 case RUDDER -> delta(deltas, b).rot[1] += s.pedal * 25;
-                case STEER -> delta(deltas, b).rot[2] += -s.steerAngle * 3;
                 case DAMAGE1 -> delta(deltas, b).hidden = hp > 0.66;
                 case DAMAGE2 -> delta(deltas, b).hidden = hp > 0.33;
                 case WRECK -> delta(deltas, b).hidden = !v.wreck;

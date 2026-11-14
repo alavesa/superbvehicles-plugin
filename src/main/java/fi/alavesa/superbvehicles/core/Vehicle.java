@@ -314,12 +314,21 @@ public final class Vehicle {
         for (Rig.BoneDelta d : deltas.values()) d.reset();
         if (rig == null) return;
         String state = physics.animationState();
-        if (!state.equals(lastState)) {
-            lastState = state;
-            anim.state(clipFor(state), state, 1.0);
-        }
+        lastState = state;
+        anim.state(clipFor(state), state, clipRate(state));   // same clip again: only the playback rate follows the speed
         anim.tick(rig, deltas);
         Procedural.apply(this, rig, deltas);
+    }
+
+    /**
+     * Playback rate of the state clip. Driving clips (drive, reverse, left, right ...) follow the speed: 1.0 at
+     * `animation-speed` blocks/s (YAML, default half the max speed), so a wheel-spin animation keyed in Blockbench
+     * matches the ground; other clips play at Blockbench speed.
+     */
+    double clipRate(String state) {
+        if (!(state.startsWith("drive") || state.startsWith("reverse") || state.equals("left") || state.equals("right"))) return 1.0;
+        double ref = Math.max(0.1, type.physics("animation-speed", type.raw("animation-speed", type.maxSpeed / 2)));
+        return Math.max(0.05, Math.min(4.0, Math.abs(phys.speed) / ref));
     }
 
     /** The clip for a state: YAML animations: {state: name}, else an animation named like the state, else a fallback chain. */

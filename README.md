@@ -66,12 +66,12 @@ throttle press (`physics.auto-start`) and stops when the vehicle sits empty for 
 | Group name | Behaviour |
 |---|---|
 | `root`, `body` | static hull (everything unnamed folds into the nearest named ancestor) |
-| `wheel_*` (`wheel_fl`, `wheel_rr`, `wheel_m1`...) | spins with speed; `wheel_f*` / `wheel_steer*` also steer |
-| `track_l`, `track_r` | track belts: creep with their side's speed |
+| `wheel_*` (`wheel_fl`, `wheel_rr`, `wheel_m1`...) | NOT moved by the plugin (0.3.0): animate them in your `drive` / `reverse` / `left` / `right` clips; their locators still give the wheelbase |
+| `track_l`, `track_r` | NOT moved by the plugin (0.3.0): animate them in the model |
 | `turret` | yaws toward the gunner's aim; `gun` / `barrel` pitches (a weapon may name other bones with `turret-bone` / `gun-bone`) |
 | `rotor_main`, `rotor_tail`, `propeller` | spin with the engine |
 | `gear_*` | fold when the gear is raised (planes) |
-| `flap_*`, `aileron_*`, `elevator`, `rudder`, `steer` | control surfaces / steering wheel |
+| `flap_*`, `aileron_*`, `elevator`, `rudder` | control surfaces (`steer` is not moved since 0.3.0) |
 | `dmg1_*`, `dmg2_*` | shown below 66% / 33% health; `intact_*` hidden when damaged; `wreck_*` shown when destroyed |
 | `hitbox_*` | invisible box(es) defining the collision hull (else the model bounds) |
 | locators `seat_*`, `muzzle_*`, `exhaust`, `wheel_*` | seats, muzzles, exhaust smoke, wheel centres |
@@ -83,6 +83,34 @@ values only (no Molang), Blockbench 4.x and 5 files. Rotations: Java cubes can o
 so a cube rotated otherwise gets a display part of its own (exact, no snapping) - just more entities. Meshes are
 replaced by their bounding boxes. Groups farther than ~24 px from their pivot are written smaller and scaled back up
 (blurrier textures) - split big groups.
+
+### Wheels and your own models (0.3.0)
+
+The plugin does not spin wheels, steer them or move tracks any more, so your model's own animations decide how they
+look. Name your clips after the driving states (`drive`, `reverse`, `left`, `right`, `reverse_left`, `reverse_right`,
+`idle`) or map them in the YAML `animations:` table. Driving clips play at a rate that follows the speed: 1x at
+`animation-speed` blocks/s (YAML, top level or under `physics:`, default half of `max-speed`). Key a wheel spin of 360
+degrees over one second in Blockbench and set `animation-speed` to the wheel circumference in blocks
+(2 x pi x radius) and the wheels roll without slipping. Groups that no animation moves are folded into the hull (fewer
+entities).
+
+### Importing models made for other tools (GeckoLib, Bedrock entity, modded entity)
+
+Entity-format .bbmodel files work as they are. What the importer handles since 0.3.0:
+* textures that are not embedded: put the PNG next to the .bbmodel (`models/<texture name>.png`,
+  `models/<model>/<texture name>.png` or `models/textures/`); the file name from the texture's Blockbench path is
+  tried too;
+* faces with no texture (Blockbench shows nothing there) are left out instead of being drawn with the first texture;
+* tall texture atlases (for example 256x512) are no longer mistaken for animated strips; an animated texture needs a
+  `<texture>.png.mcmeta` next to the PNG;
+* null objects work as locators (seats, muzzles);
+* cubes rotated by angles a Java model cannot hold (anything but 0, 22.5, 45 on one axis) are exact but each distinct
+  rotation becomes its own item display; the pack report warns above 48 parts per vehicle.
+
+Check the vehicle's facing: entity models are usually modelled nose to the north (-Z), which is `model-yaw: 180`
+(default). If it drives backwards, set `model-yaw: 0`. Size: 16 px = 1 block; use `scale:` if the model was made at a
+different size. Respect the licence of models you did not make (attribution, non-commercial terms) and do not
+redistribute them in public packs or repositories that the licence does not allow.
 
 ### Skins
 
@@ -278,6 +306,8 @@ sources) regenerates the shipped placeholder models and `defaults-index.txt`.
   and that the server address players use can reach the pack (`pack.host.address`). Behind a proxy use `self` or `url`.
 * **"no models/<name>.bbmodel - a placeholder was generated"**: the YAML `model:` does not match a file in `models/`
   (case matters).
+* **A model looks scrambled** (0.1.0 / 0.2.0): every part was drawn turned 180 degrees about its own centre because
+  item displays turn their item half a turn on the client; fixed in 0.3.0 - update the jar.
 * **Parts float / drive backwards**: `model-yaw` (180 = nose at Blockbench north) or the group pivots; see
   `pack-report.txt` warnings and `/sbv debug hitboxes|seats`.
 * **Riders sit too high/low**: `seats.rider-offset`; parts offset vertically: `render.passenger-offset`.
