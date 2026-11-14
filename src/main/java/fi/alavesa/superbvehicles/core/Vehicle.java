@@ -283,6 +283,7 @@ public final class Vehicle {
             phys.activeClamp = "";
             physics.tick(controls, collider);
             sanity(before);
+            if (type.vehicleClass != VehicleClass.STATIC && plugin.flag("physics.ram.enabled", true)) physics.ram();
         }
         controls.clearEdges();
         if (plugin.vehicles().debugging(this)) plugin.vehicles().debugTick(this);

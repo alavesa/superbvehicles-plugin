@@ -94,4 +94,63 @@ class SlabDrivingTest {
         car.run(5);
         assertTrue(car.pose.z > 30, "stuck at " + car.pose.z);
     }
+
+    // ---------------------------------------------------------------- impacts (0.5.0)
+
+    /** Drive at full throttle; returns {largest impact seen, speed just before it, speed just after it}. */
+    static double[] maxImpact(Car car, double seconds) {
+        double best = 0, before = 0, after = 0, prevSpeed = 0;
+        for (int i = 0; i < Math.round(seconds * 20); i++) {
+            car.last = car.ctl.step(car.pose, car.s, car.in, car.col);
+            if (car.last.lostSpeed > best) { best = car.last.lostSpeed; before = prevSpeed; after = car.s.speed; }
+            prevSpeed = car.s.speed;
+        }
+        return new double[]{best, before, after};
+    }
+
+    @Test void hittingAWallAtSpeedRegistersTheSpeedLost() {
+        StepTerrain t = new StepTerrain(BASE).area(-20, 60, 20, 61, 3.0);   // wall 60 blocks ahead
+        Car car = new Car("sodayo", t, 0.5, 0.5, 0);
+        car.in.throttle = 1;
+        double[] hit = maxImpact(car, 8);
+        assertTrue(hit[1] > 18, "should hit the wall fast: " + hit[1]);
+        assertTrue(hit[0] >= hit[1] * 0.9, "impact " + hit[0] + " for a hit at " + hit[1] + " b/s");
+    }
+
+    @Test void slabsAtFullSpeedAreNotAnImpact() {
+        StepTerrain t = new StepTerrain(BASE);
+        for (int i = 0; i < 8; i++) t.area(-3, 30 + i * 3, 3, 32 + i * 3, 0.5 * (i + 1));
+        t.area(-3, 54, 3, 300, 4.0);
+        Car car = new Car("sodayo", t, 0.5, 0.5, 0);
+        car.in.throttle = 1;
+        double[] hit = maxImpact(car, 8);
+        assertTrue(hit[0] < 6, "a slab road at full speed must stay free, impact " + hit[0]);
+        assertTrue(car.pose.y >= BASE + 3.99, "and still climbs it");
+    }
+
+    @Test void aFullBlockAtSpeedIsACurbStrike() {
+        StepTerrain t = new StepTerrain(BASE).area(-20, 60, 20, 400, 1.0);
+        Car car = new Car("sodayo", t, 0.5, 0.5, 0);
+        car.in.throttle = 1;
+        double[] hit = maxImpact(car, 8);
+        assertTrue(hit[0] >= 15, "a full block at " + hit[1] + " b/s should hurt: impact " + hit[0]);
+        assertTrue(hit[2] < hit[1] * 0.7, "and slow the car: " + hit[1] + " -> " + hit[2]);
+        assertTrue(car.last.collision.startsWith("curb") || car.pose.y >= BASE + 0.99, car.last.collision);
+    }
+
+    @Test void aFullBlockTakenSlowlyIsFree() {
+        StepTerrain t = new StepTerrain(BASE).area(-20, 6, 20, 400, 1.0);
+        Car car = new Car("sodayo", t, 0.5, 0.5, 0);
+        car.in.throttle = 0.25;
+        double[] hit = maxImpact(car, 6);
+        assertTrue(car.pose.y >= BASE + 0.99, "climbed it");
+        assertTrue(hit[0] < 6, "creeping onto a block is not a crash: " + hit[0] + " at " + hit[1]);
+    }
+
+    @Test void closingSpeedIsTheComponentTowardTheTarget() {
+        org.joml.Vector3d v = new org.joml.Vector3d(0, 0, 20);
+        assertEquals(20, VehiclePhysics.closingSpeed(v, new org.joml.Vector3d(0, 0, 0), new org.joml.Vector3d(0, 0, 5)), 1e-9);
+        assertEquals(0, VehiclePhysics.closingSpeed(v, new org.joml.Vector3d(0, 0, 0), new org.joml.Vector3d(0, 0, -5)), 1e-9, "driving away is no hit");
+        assertEquals(20 / Math.sqrt(2), VehiclePhysics.closingSpeed(v, new org.joml.Vector3d(0, 0, 0), new org.joml.Vector3d(5, 3, 5)), 1e-9, "a glancing hit counts less; height ignored");
+    }
 }

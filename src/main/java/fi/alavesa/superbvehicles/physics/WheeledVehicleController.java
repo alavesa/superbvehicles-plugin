@@ -61,6 +61,8 @@ public final class WheeledVehicleController {
         public double wheelRadius = 0.45;          // blocks, for the wheel spin
         public double waterFactor = 0.4;           // engine and speed limit in water
         public boolean autoStartEngine = true;
+        public double freeStep = 0.55;             // blocks: steps up to this height (slabs, paths) never count as an impact
+        public double curbSpeed = 8;               // blocks/s: higher steps taken faster than this are an impact (curb strike)
 
         /** Read from a vehicle type. Old 0.1.0 keys (engine-power, reverse-speed, grip, brake) are understood. */
         public static Params of(VehicleType t) {
@@ -89,6 +91,8 @@ public final class WheeledVehicleController {
             p.maxTilt = t.physics("max-tilt", 45);
             p.suspensionRate = t.physics("suspension-rate", 0.35);
             p.autoStartEngine = t.physicsFlag("auto-start-engine", t.physicsFlag("auto-start", true));
+            p.freeStep = Math.max(0, t.physics("free-step", 0.55));
+            p.curbSpeed = Math.max(0, t.physics("curb-speed", 8));
             return p;
         }
     }
@@ -239,6 +243,8 @@ public final class WheeledVehicleController {
 
         // 7. integrate through the collider (the one per-tick conversion)
         double yBefore = pose.y;
+        double vxBefore = s.vel.x, vzBefore = s.vel.z;
+        double rise = 0;
         Vector3d delta = new Vector3d(Units.perTick(s.vel.x), Units.perTick(s.vel.y), Units.perTick(s.vel.z));
         int sub = Math.max(1, (int) Math.ceil(delta.length() / 0.5));
         Vector3d step = new Vector3d(delta).div(sub);
@@ -249,6 +255,7 @@ public final class WheeledVehicleController {
             BlockCollider.Result cr = col.sweep(hull.at(pose), step, p.stepHeight, true);
             pose.x += cr.moved.x; pose.y += cr.moved.y; pose.z += cr.moved.z;
             lost += cr.blockedSpeed;
+            if (cr.stepped) rise = Math.max(rise, cr.stepRise);
             if (!collision.startsWith("blocked") && !collision.startsWith("depen")) collision = cr.describe();
             if (cr.hitX) { blockedX = true; step.x = 0; }
             if (cr.hitZ) { blockedZ = true; step.z = 0; }
@@ -258,8 +265,19 @@ public final class WheeledVehicleController {
         if (blockedZ) s.vel.z = 0;
         if (landed) s.vel.y = 0;
         r.collision = collision;
-        r.lostSpeed = Units.perSecond(lost);
-        s.lastImpact = r.lostSpeed;
+        // impact = the speed the collision actually took away (blocked axes lose their whole velocity), not the
+        // distance missed in one sub-step - before 0.5.0 a 25 b/s wall hit read as 0..8 b/s and rarely did damage
+        double impact = Math.hypot(blockedX ? vxBefore : 0, blockedZ ? vzBefore : 0);
+        // a step higher than free-step (slabs and paths are free) taken fast is a curb strike: it hurts and slows
+        double hspeed = Math.hypot(vxBefore, vzBefore);
+        if (rise > p.freeStep + 1e-3 && hspeed > p.curbSpeed) {
+            double factor = Pose.clamp((rise - p.freeStep) / Math.max(0.05, 1.0 - p.freeStep), 0, 1);
+            double curb = hspeed * factor;
+            s.vel.x *= 1 - 0.6 * factor; s.vel.z *= 1 - 0.6 * factor;
+            if (curb > impact) { impact = curb; collision = String.format(java.util.Locale.ROOT, "curb strike %.2f blocks at %.1f b/s", rise, hspeed); r.collision = collision; }
+        }
+        r.lostSpeed = impact;
+        s.lastImpact = impact;
 
         // 8. ground contact from the collider: the box rests on the highest block under it; going down a step it is
         //    snapped down so it stays on the ground; the corner heights only tilt the visible body

@@ -179,6 +179,7 @@ public final class HelicopterModel {
         double lost = 0;
         boolean landed = false;
         double fall = -s.vel.y;
+        double vxB = s.vel.x, vzB = s.vel.z;
         for (int i = 0; i < sub; i++) {
             BlockCollider.Result cr = col.sweep(hull.at(pose), step, 0, false);
             pose.x += cr.moved.x; pose.y += cr.moved.y; pose.z += cr.moved.z;
@@ -187,7 +188,7 @@ public final class HelicopterModel {
             if (cr.hitZ) { s.vel.z = 0; step.z = 0; }
             if (cr.hitY) { if (step.y < 0) landed = true; s.vel.y = 0; step.y = 0; }
         }
-        s.lastImpact = Units.perSecond(lost);
+        s.lastImpact = Math.hypot(vxB - s.vel.x, vzB - s.vel.z);   // speed taken away by blocks
         double gNow = col.groundAt(pose.x, pose.y, pose.z, 0.3, 0.6);
         boolean wasGround = s.onGround;
         s.onGround = (!Double.isNaN(gNow) && pose.y - gNow <= 0.12 && s.vel.y <= 0.001) || landed;

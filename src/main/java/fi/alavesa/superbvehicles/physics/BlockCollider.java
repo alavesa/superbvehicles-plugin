@@ -26,6 +26,7 @@ public final class BlockCollider {
         public final Vector3d moved = new Vector3d();
         public final Vector3d depenetration = new Vector3d();
         public boolean hitX, hitY, hitZ, stepped;
+        public double stepRise;          // blocks climbed by the step-up (0 when none)
         public double blockedSpeed;       // blocks of this move lost to collisions (horizontal)
         public double hitX0, hitY0, hitZ0; // world point of the last horizontal hit (NaN when none)
         public boolean hitHorizontal() { return hitX || hitZ; }
@@ -92,6 +93,7 @@ public final class BlockCollider {
             double az = axisMove(hull, alt, 2, delta.z, boxes); alt.z += az;
             if (Math.hypot(ax, az) > Math.hypot(dx, dz) + 1e-6) {
                 alt.y += axisMove(hull, alt, 1, -lift, boxes);    // settle back onto the step
+                r.stepRise = Math.max(0, alt.y - pos.y);
                 pos.set(alt);
                 blockedX = Math.abs(ax - delta.x) > 1e-9; blockedZ = Math.abs(az - delta.z) > 1e-9;
                 r.stepped = true;

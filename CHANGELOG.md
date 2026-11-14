@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0 - 2026-11-14
+
+### Fixed
+- **Crashing did not damage vehicles.** The impact was measured as the distance missed in one sub-step of a tick, so a
+  25 blocks/s wall hit read as 0-8 blocks/s and rarely passed the 6 blocks/s crash threshold. The impact is now the
+  speed the collision actually takes away, for every class (cars, tanks, boats, helicopters, planes). Hard hits damage
+  the vehicle (`physics.crash.vehicle-damage` per block/s) and its riders.
+
+### Added
+- Curb strikes: a step higher than `free-step` (0.55, so slabs and paths stay free) taken faster than `curb-speed`
+  (8 blocks/s) damages the vehicle and slows it. Creeping onto a full block is still free.
+- Ramming: mobs, players and other vehicles in the way are damaged and knocked back by the closing speed (heavier
+  vehicles hit harder); the rammer takes part of the damage and loses speed. Vehicle-on-vehicle hits share momentum.
+  `physics.ram.enabled`, `min-speed`, `self-damage`, `physics.crash.ram-damage`.
+
 ## 0.4.0 - 2026-11-14
 
 ### Fixed

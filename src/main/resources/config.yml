@@ -41,7 +41,13 @@ physics:
     min-speed: 6.0                # blocks/s lost in one tick that counts as a crash
     vehicle-damage: 2.5           # health per block/s lost
     rider-damage: 0.5             # hearts per block/s above min-speed
-    ram-damage: 1.2               # to entities, per block/s
+    ram-damage: 1.2               # health to a rammed mob/player per block/s of closing speed (x vehicle mass / 1500 kg)
+    free-step: 0.55               # (vehicle YAML physics) steps up to this height never count as an impact
+    curb-speed: 8                 # (vehicle YAML physics) higher steps taken faster than this (blocks/s) are a curb strike
+  ram:
+    enabled: true                 # vehicles hurt and shove mobs, players and other vehicles in their way
+    min-speed: 3                  # blocks/s closing speed below which nothing happens
+    self-damage: 0.25             # health the vehicle loses per block/s when it rams a mob or player
 
 seats:
   enter-range: 4.5

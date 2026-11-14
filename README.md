@@ -112,6 +112,14 @@ Check the vehicle's facing: entity models are usually modelled nose to the north
 different size. Respect the licence of models you did not make (attribution, non-commercial terms) and do not
 redistribute them in public packs or repositories that the licence does not allow.
 
+### Crashes and ramming (0.5.0)
+
+Hitting a block hurts the vehicle by the speed the hit takes away (`physics.crash.min-speed` 6 blocks/s,
+`vehicle-damage` 2.5 health per block/s, riders take `rider-damage`). Steps higher than `free-step` (0.55: slabs and
+paths are free) taken faster than `curb-speed` (8 blocks/s) are curb strikes: damage and a loss of speed. Vehicles hurt
+and shove mobs, players and other vehicles in their way (`physics.ram.*`, `physics.crash.ram-damage`); the heavier
+vehicle wins. Below 20% health the engine loses power and the vehicle burns; at zero it explodes into a wreck.
+
 ### Seats
 
 Seats are placed by the model: a Blockbench locator (or a group) named like the seat's `locator` in the YAML (default

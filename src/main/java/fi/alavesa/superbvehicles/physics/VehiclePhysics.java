@@ -74,6 +74,7 @@ public abstract class VehiclePhysics {
         double cap = Units.perTick(capBps);                                 // absolute safety
         if (delta.length() > cap) { delta.normalize(cap); s.activeClamp = "global speed cap"; }
         int sub = Math.max(1, Math.min(8, (int) Math.ceil(delta.length() / 0.5)));
+        double vxBefore = s.vel.x, vzBefore = s.vel.z;
         Vector3d step = new Vector3d(delta).div(sub);
         BlockCollider.Result total = new BlockCollider.Result();
         total.hitX0 = total.hitY0 = total.hitZ0 = Double.NaN;
@@ -88,7 +89,7 @@ public abstract class VehiclePhysics {
             if (r.hitZ) { s.vel.z = 0; step.z = 0; }
             if (r.hitY) { if (step.y < 0) s.onGround = true; s.vel.y = 0; step.y = 0; }
         }
-        afterMove(Units.perSecond(total.blockedSpeed));
+        afterMove(Math.hypot(total.hitX ? vxBefore : 0, total.hitZ ? vzBefore : 0));   // the speed the collision took away
         s.distance += Math.hypot(total.moved.x, total.moved.z);
         return total;
     }
@@ -149,5 +150,79 @@ public abstract class VehiclePhysics {
         double[] att = GroundContact.attitude(col, v.pose, v.hull(), t.stepHeight * t.scale + 0.1, 3.0, maxTilt);
         s.bodyPitchTarget = att[0]; s.bodyRollTarget = att[1]; s.wheelContact = att[2];
         return on;
+    }
+
+    // ------------------------------------------------------------------ ramming (0.5.0)
+
+    private final java.util.Map<java.util.UUID, Integer> ramCooldown = new java.util.HashMap<>();
+
+    /** Closing speed (blocks/s) of a velocity toward a point: the component along the direction to it, >= 0. */
+    public static double closingSpeed(Vector3d vel, Vector3d from, Vector3d to) {
+        Vector3d d = new Vector3d(to).sub(from); d.y = 0;
+        if (d.lengthSquared() < 1e-9) return vel.length();
+        return Math.max(0, vel.dot(d.normalize()));
+    }
+
+    /**
+     * Mobs, players and other vehicles in the hull's way: damage and knockback from the closing speed (scaled by the
+     * vehicle's mass), the vehicle takes part of it and loses speed. Riders, our own entities, creative/spectator
+     * players and anything slower than physics.ram.min-speed are left alone. Each target once per 10 ticks.
+     */
+    public void ram() {
+        double speed = Math.hypot(s.vel.x, s.vel.z);
+        if (speed < cfg("physics.ram.min-speed", 3.0) || v.wreck) return;
+        int now = (int) v.age;
+        ramCooldown.values().removeIf(t -> t < now - 40);
+        Obb h = v.hull();
+        Obb reach = new Obb(h.center, new Vector3d(h.half).add(0.25, 0.1, 0.25), h.rot);
+        Vector3d c = h.center;
+        double mass = Math.max(50, t.physics("mass", t.mass));
+        double massFactor = Pose.clamp(mass / 1500.0, 0.3, 4.0);
+        org.bukkit.entity.Player driver = v.driver();
+        for (org.bukkit.entity.Entity e : v.world.getNearbyEntities(reach.aabb())) {
+            if (!(e instanceof org.bukkit.entity.LivingEntity le) || e.isDead()) continue;
+            if (e.getScoreboardTags().contains(fi.alavesa.superbvehicles.core.Keys.TAG_ENTITY)) continue;
+            if (e instanceof org.bukkit.entity.ArmorStand) continue;
+            if (e instanceof org.bukkit.entity.Player pl && (v.seatOf(pl) != null || pl.getGameMode() == org.bukkit.GameMode.CREATIVE || pl.getGameMode() == org.bukkit.GameMode.SPECTATOR)) continue;
+            if (!reach.intersects(e.getBoundingBox())) continue;
+            Integer last = ramCooldown.get(e.getUniqueId());
+            if (last != null && now - last < 10) continue;
+            Vector3d at = new Vector3d(e.getLocation().getX(), e.getLocation().getY(), e.getLocation().getZ());
+            double closing = closingSpeed(s.vel, c, at);
+            if (closing < cfg("physics.ram.min-speed", 3.0)) continue;
+            ramCooldown.put(e.getUniqueId(), now);
+            double dmg = closing * cfg("physics.crash.ram-damage", 1.2) * massFactor;
+            if (driver != null) le.damage(dmg, driver); else le.damage(dmg);
+            Vector3d push = new Vector3d(at).sub(c); push.y = 0;
+            if (push.lengthSquared() < 1e-9) push.set(v.pose.forwardFlat()); else push.normalize();
+            le.setVelocity(new org.bukkit.util.Vector(push.x * closing * 0.05 + s.vel.x * 0.03, 0.35 + closing * 0.01, push.z * closing * 0.05 + s.vel.z * 0.03));
+            v.world.playSound(le.getLocation(), "minecraft:entity.player.attack.knockback", 1f, 0.7f);
+            double self = closing * cfg("physics.ram.self-damage", 0.25);
+            if (self > 0.5) plugin.damage().crash(v, self, 0);
+            double keep = Pose.clamp(1 - le.getBoundingBox().getVolume() * 40 / mass, 0.6, 0.97);   // big mobs slow you more
+            s.vel.x *= keep; s.vel.z *= keep;
+        }
+        for (Vehicle o : plugin.vehicles().nearby(v.location(), 16)) {
+            if (o == v || !o.spawned() || o.wreck) continue;
+            Obb oh = o.hull();
+            if (!reach.intersects(oh)) continue;
+            Integer last = ramCooldown.get(o.id);
+            if (last != null && now - last < 10) continue;
+            Vector3d rel = new Vector3d(s.vel).sub(o.phys.vel);
+            double closing = closingSpeed(rel, c, oh.center);
+            if (closing < cfg("physics.ram.min-speed", 3.0)) continue;
+            ramCooldown.put(o.id, now);
+            double om = Math.max(50, o.type.physics("mass", o.type.mass));
+            double dmg = closing * cfg("physics.crash.vehicle-damage", 2.5) * 0.6;
+            plugin.damage().crash(o, dmg * Pose.clamp(mass / om, 0.25, 4), closing);
+            plugin.damage().crash(v, dmg * Pose.clamp(om / mass, 0.25, 4), closing);
+            Vector3d dir = new Vector3d(oh.center).sub(c); dir.y = 0;
+            if (dir.lengthSquared() < 1e-9) dir.set(v.pose.forwardFlat()); else dir.normalize();
+            double share = om / (mass + om);                          // momentum: the lighter one is shoved more
+            o.phys.vel.add(new Vector3d(dir).mul(closing * (1 - share)));
+            s.vel.sub(new Vector3d(dir).mul(closing * share));
+            v.world.playSound(v.location(), "minecraft:entity.generic.explode", 0.6f, 1.6f);
+            v.world.spawnParticle(org.bukkit.Particle.CRIT, (c.x + oh.center.x) / 2, (c.y + oh.center.y) / 2, (c.z + oh.center.z) / 2, 20, 0.4, 0.4, 0.4, 0.2);
+        }
     }
 }

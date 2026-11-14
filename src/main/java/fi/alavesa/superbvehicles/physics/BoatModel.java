@@ -146,6 +146,7 @@ public final class BoatModel {
         int sub = Math.max(1, (int) Math.ceil(delta.length() / 0.5));
         Vector3d step = new Vector3d(delta).div(sub);
         double lost = 0; boolean landed = false;
+        double vxB = s.vel.x, vzB = s.vel.z;
         for (int i = 0; i < sub; i++) {
             BlockCollider.Result cr = col.sweep(hull.at(pose), step, p.stepHeight, true);
             pose.x += cr.moved.x; pose.y += cr.moved.y; pose.z += cr.moved.z;
@@ -155,7 +156,7 @@ public final class BoatModel {
             if (cr.hitZ) { s.vel.z = 0; step.z = 0; }
             if (cr.hitY && step.y < 0) { landed = true; step.y = 0; }
         }
-        s.lastImpact = Units.perSecond(lost);
+        s.lastImpact = Math.hypot(vxB - s.vel.x, vzB - s.vel.z);   // speed taken away by blocks
         boolean wasGround = s.onGround;
         boolean on;
         if (landed) on = true;
