@@ -79,7 +79,15 @@ public final class DamageListener implements Listener {
         Vehicle v = plugin.vehicles().byPlayer(p);
         if (v == null) return;
         Vehicle.SeatSlot s = v.seatOf(p);
-        if (s == null || s.def.exposed) return;
+        if (s == null) return;
+        // chase view: the body floats behind the vehicle, it is not really there
+        if (plugin.camera().active(p) && e.getCause() != EntityDamageEvent.DamageCause.CUSTOM && e.getCause() != EntityDamageEvent.DamageCause.KILL) {
+            switch (e.getCause()) {
+                case PROJECTILE, ENTITY_ATTACK, ENTITY_SWEEP_ATTACK, FALL, FLY_INTO_WALL, CONTACT, DROWNING, HOT_FLOOR, CRAMMING, SUFFOCATION, FIRE, LAVA, CAMPFIRE -> { e.setCancelled(true); return; }
+                default -> { }
+            }
+        }
+        if (s.def.exposed) return;
         switch (e.getCause()) {
             case PROJECTILE, ENTITY_ATTACK, ENTITY_SWEEP_ATTACK, FALL, FLY_INTO_WALL, CONTACT, DROWNING, HOT_FLOOR, CRAMMING -> e.setCancelled(true);
             default -> { }

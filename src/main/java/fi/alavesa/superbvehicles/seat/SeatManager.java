@@ -36,7 +36,7 @@ import java.util.UUID;
  * dismount speed. Also keeps each player's last PlayerInputEvent state and the one-shot key edges for the physics.
  */
 public final class SeatManager implements Listener {
-    private static final class Keys { Input input; boolean swap, drop, attack, use; int hotbar = -1; int lastSneakTick = Integer.MIN_VALUE / 2; int bailUntil = -1; int hintAt = -100; }
+    private static final class Keys { Input input; boolean swap, drop, attack, use; boolean latchSwap, latchDrop, latchAttack, latchUse; int hotbar = -1; int lastSneakTick = Integer.MIN_VALUE / 2; int bailUntil = -1; int hintAt = -100; }
 
     private final SuperbVehiclesPlugin plugin;
     private final Map<UUID, Keys> keys = new HashMap<>();
@@ -72,6 +72,8 @@ public final class SeatManager implements Listener {
         Keys k = keys.get(p.getUniqueId());
         if (k == null) return;
         c.swapHands = k.swap; c.drop = k.drop; c.attack = k.attack; c.use = k.use; c.hotbar = k.hotbar;
+        // the driver's weapon keys are read later in the tick by gunnerTick: keep this tick's presses for it
+        k.latchSwap |= k.swap; k.latchDrop |= k.drop; k.latchAttack |= k.attack; k.latchUse |= k.use;
         k.swap = k.drop = k.attack = k.use = false; k.hotbar = -1;
     }
 
@@ -80,9 +82,9 @@ public final class SeatManager implements Listener {
         Keys k = keys.get(p.getUniqueId());
         if (s.def.weapons.isEmpty()) { if (k != null) { k.swap = k.drop = k.attack = k.use = false; k.hotbar = -1; } return; }
         boolean driver = s.def.role == VehicleType.SeatRole.DRIVER;
-        String cls = driver ? v.type.vehicleClass.name().toLowerCase(java.util.Locale.ROOT) : "gunner";
+        String cls = driver ? controlClass(v) : "gunner";
         String fireKey = plugin.getConfig().getString("controls." + cls + ".fire", driver ? "sprint" : "jump");
-        String cmKey = plugin.getConfig().getString("controls." + cls + ".countermeasure", "swap_hands");
+        String cmKey = plugin.getConfig().getString("controls." + cls + ".countermeasure", cls.equals("helicopter-simple") ? "use" : "swap_hands");
         if (k != null && k.hotbar >= 0 && k.hotbar < s.def.weapons.size() && k.hotbar != s.weaponIndex) {
             s.weaponIndex = k.hotbar;
             MountedWeapon w = v.weapons.get(s.def.weapons.get(s.weaponIndex));
@@ -97,7 +99,7 @@ public final class SeatManager implements Listener {
             trigger = held(in, fireKey) || (k.attack && !driver);
             cm = pressed(k, cmKey);
         }
-        if (driver) { /* the driver's edges are drained by the vehicle tick; only the held trigger is read here */ }
+        if (driver && k != null) { k.latchSwap = k.latchDrop = k.latchAttack = k.latchUse = false; }
         else if (k != null) { k.attack = false; k.use = false; k.swap = false; k.drop = false; k.hotbar = -1; }
         w.control(p, trigger, cm);
         // a countermeasure weapon elsewhere in this seat's list also listens to its key
@@ -108,7 +110,19 @@ public final class SeatManager implements Listener {
         return switch (key == null ? "" : key.toLowerCase(java.util.Locale.ROOT)) { case "jump", "space" -> in.isJump(); case "sprint", "ctrl" -> in.isSprint(); case "sneak" -> in.isSneak(); case "forward" -> in.isForward(); case "backward" -> in.isBackward(); default -> false; };
     }
     private static boolean pressed(Keys k, String key) {
-        return switch (key == null ? "" : key.toLowerCase(java.util.Locale.ROOT)) { case "swap_hands", "f" -> k.swap; case "drop", "q" -> k.drop; case "attack", "left_click" -> k.attack; case "use", "right_click" -> k.use; default -> false; };
+        return switch (key == null ? "" : key.toLowerCase(java.util.Locale.ROOT)) { case "swap_hands", "f" -> k.swap || k.latchSwap; case "drop", "q" -> k.drop || k.latchDrop; case "attack", "left_click" -> k.attack || k.latchAttack; case "use", "right_click" -> k.use || k.latchUse; default -> false; };
+    }
+
+    /** The controls table for a vehicle's driver: helicopters on the simple flight model use controls.helicopter-simple. */
+    public static String controlClass(Vehicle v) {
+        if (v.type.vehicleClass == VehicleClass.HELICOPTER && fi.alavesa.superbvehicles.physics.HelicopterModel.Params.simple(v.type)) return "helicopter-simple";
+        return v.type.vehicleClass.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** The pilot of a simple-model helicopter: sneak is "descend", not "leave". */
+    private static boolean simplePilot(Player p, Vehicle v) {
+        Vehicle.SeatSlot s = v.seatOf(p);
+        return s != null && s.def.role == VehicleType.SeatRole.DRIVER && "helicopter-simple".equals(controlClass(v));
     }
 
     public void forced(Runnable r) { boolean old = forced; forced = true; try { r.run(); } finally { forced = old; } }
@@ -149,6 +163,8 @@ public final class SeatManager implements Listener {
         }
         keys(p).bailUntil = -1;
         plugin.messages().send(p, current != null ? "seat-switched" : "entered", Messages.str("seat", seat.def.name), Messages.str("name", v.displayName()));
+        if (seat.def.role == VehicleType.SeatRole.DRIVER && "helicopter-simple".equals(controlClass(v))) plugin.messages().send(p, "heli-controls");
+        if (plugin.camera().wants(p, v, seat)) plugin.messages().send(p, "camera-hint");
         return true;
     }
 
@@ -160,6 +176,7 @@ public final class SeatManager implements Listener {
         forced(() -> { if (s != null && s.stand != null) s.stand.removePassenger(p); else p.leaveVehicle(); });
         if (s != null) plugin.getServer().getPluginManager().callEvent(new VehicleExitEvent(v, p, s.index, force));
         plugin.hud().forgetPlayer(p);
+        plugin.camera().release(p);
     }
 
     public void ejectAll(Vehicle v, boolean launch) {
@@ -178,6 +195,13 @@ public final class SeatManager implements Listener {
         if (forced || v.wreck || v.removed) return true;
         Keys k = keys.get(p.getUniqueId());
         boolean bail = k != null && tick <= k.bailUntil;
+        if (simplePilot(p, v)) {
+            // held sneak while airborne = descending: leave only with a fresh sneak press after touchdown
+            if (!v.phys.onGround || v.phys.speedBps() >= 2) return false;
+            if (k != null && k.lastSneakTick > v.lastAirborneTick) return true;
+            hint(p, k, "heli-release-sneak");
+            return false;
+        }
         if (v.type.vehicleClass.aircraft()) {
             if (v.phys.onGround && v.phys.speedBps() < 2) return true;
             if (bail) { bailOut(p, v); return true; }
@@ -194,6 +218,16 @@ public final class SeatManager implements Listener {
     private void hint(Player p, Keys k, String key, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver... r) {
         if (k == null) k = keys(p);
         if (tick - k.hintAt > 40) { k.hintAt = tick; plugin.messages().actionBar(p, key, r); }
+    }
+
+    /** Bail out right now (simple helicopter pilot: jump + sneak held). */
+    public void bailOutNow(Player p, Vehicle v) {
+        Vehicle.SeatSlot s = v.seatOf(p);
+        if (s == null) return;
+        forced(() -> s.stand.removePassenger(p));
+        plugin.getServer().getPluginManager().callEvent(new VehicleExitEvent(v, p, s.index, false));
+        plugin.hud().forgetPlayer(p);
+        bailOut(p, v);
     }
 
     private void bailOut(Player p, Vehicle v) {
@@ -235,6 +269,7 @@ public final class SeatManager implements Listener {
         Vehicle.SeatSlot s = v.seatOfEntity(e.getDismounted());
         plugin.getServer().getPluginManager().callEvent(new VehicleExitEvent(v, p, s == null ? -1 : s.index, false));
         plugin.hud().forgetPlayer(p);
+        plugin.camera().release(p);
         // put the player beside the vehicle, not inside its hull
         plugin.sched().later(1, () -> {
             if (!p.isOnline() || p.isInsideVehicle()) return;
@@ -246,6 +281,7 @@ public final class SeatManager implements Listener {
 
     @EventHandler public void onQuit(PlayerQuitEvent e) {
         Player p = e.getPlayer();
+        plugin.camera().release(p);
         Vehicle v = plugin.vehicles().byPlayer(p);
         if (v != null) exit(p, true);
         keys.remove(p.getUniqueId());

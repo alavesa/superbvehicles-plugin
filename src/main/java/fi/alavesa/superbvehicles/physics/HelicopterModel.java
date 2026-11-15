@@ -8,6 +8,11 @@ import java.util.Locale;
 
 /**
  * Helicopter flight with no server dependency (unit-tested). Units: blocks/s, blocks/s^2, degrees, degrees/s.
+ * Two flight models (YAML physics.flight-model):
+ * <p><b>simple</b> (default): W/S fly forward / back, A/D strafe, the helicopter turns to face where the pilot looks,
+ * jump climbs, sneak descends. No keys: it brakes to a hover and holds altitude. Speed builds up in accel-time and
+ * bleeds off in brake-time; the body tilt is only visual.
+ * <p><b>realistic</b> (the 0.2 model):
  * <ul>
  *   <li><b>Tilt to speed</b>: the rotor disc tilts with the body (pitch/roll, limited to max-tilt); the horizontal part of
  *       the rotor thrust accelerates the helicopter: a = 9.81 * tan(tilt) along the tilt direction.</li>
@@ -29,6 +34,12 @@ public final class HelicopterModel {
         public double clampHorizontal = 28, clampClimb = 8, clampDescent = 10, clampYawRate = 70;   // hard limits
         public double gravity = 32;
         public boolean autoStabilise = true, autoStartEngine = true;
+        // simple flight model
+        public boolean simple = true, turnWithKeys = false;
+        public double accelTime = 2.5, brakeTime = 1.5, reverseFactor = 0.5, strafeFactor = 0.6, visualTilt = 12, turnGain = 4;
+
+        /** physics.flight-model: simple (default) | realistic. */
+        public static boolean simple(VehicleType t) { return !"realistic".equalsIgnoreCase(t.physicsSection.getString("flight-model", "simple")); }
 
         public static Params of(VehicleType t) {
             Params p = new Params();
@@ -51,6 +62,14 @@ public final class HelicopterModel {
             p.clampYawRate = t.physics("max-yaw-rate-clamp", p.maxYawRate);
             p.autoStabilise = t.physicsFlag("auto-stabilise", true);
             p.autoStartEngine = t.physicsFlag("auto-start-engine", true);
+            p.simple = simple(t);
+            p.turnWithKeys = "keys".equalsIgnoreCase(t.physicsSection.getString("turn-with", "view"));
+            p.accelTime = Math.max(0.2, t.physics("accel-time", 2.5));
+            p.brakeTime = Math.max(0.2, t.physics("brake-time", 1.5));
+            p.reverseFactor = Pose.clamp(t.physics("reverse-factor", 0.5), 0, 1);
+            p.strafeFactor = Pose.clamp(t.physics("strafe-factor", 0.6), 0, 1);
+            p.visualTilt = Pose.clamp(t.physics("visual-tilt", 12), 0, 30);
+            p.turnGain = Math.max(0.5, t.physics("turn-gain", 4));
             return p;
         }
         double maxTiltAccel() { return 9.81 * Math.tan(Math.toRadians(maxTilt)); }
@@ -64,6 +83,8 @@ public final class HelicopterModel {
         public boolean cyclicFromView = true;     // tilt follows the view (false: tests set cyclicPitch/cyclicRoll)
         public double cyclicPitch, cyclicRoll;    // -1..1 when not from the view (forward = +1)
         public double powerFactor = 1, speedLimitFactor = 1;
+        // simple flight model: -1..1 each
+        public double forward, strafe, vertical;
     }
 
     public static final class Report {
@@ -96,6 +117,15 @@ public final class HelicopterModel {
         double g = col.groundAt(pose.x, pose.y, pose.z, 0.3, 64);
         double agl = Double.isNaN(g) ? 64 : pose.y - g;
         s.altitude = pose.y;
+
+        if (p.simple) controlsSimple(pose, s, in, r, live, agl, h);
+        else controlsRealistic(pose, s, in, r, live, agl, h);
+        return integrate(pose, s, r, col, live);
+    }
+
+    /** The 0.2 model: tilt-to-speed from the view, quadratic drag, collective, pedals. */
+    private void controlsRealistic(Pose pose, PhysicsState s, Input in, Report r, boolean live, double agl, Obb h) {
+        double dt = Units.DT;
 
         // controls
         s.collective = Pose.approach(s.collective, live ? Pose.clamp(in.collective, -1, 1) : 0, 0.15);
@@ -153,7 +183,64 @@ public final class HelicopterModel {
         if (sp > hClamp) { vh.mul(hClamp / sp); r.clamp = speedLimit < p.maxSpeed ? "unloaded chunks ahead" : "max horizontal speed"; }
         if (vh.length() < 0.02) vh.set(0, 0, 0);
 
-        // vertical
+        s.vel.set(vh.x, vertical(pose, s, r, agl, h), vh.z);
+    }
+
+    /** Arcade flight: velocity targets from the keys, heading from the view, altitude hold. */
+    private void controlsSimple(Pose pose, PhysicsState s, Input in, Report r, boolean live, double agl, Obb h) {
+        double dt = Units.DT;
+        double fwd = live ? Pose.clamp(in.forward, -1, 1) : 0, side = live ? Pose.clamp(in.strafe, -1, 1) : 0, up = live ? Pose.clamp(in.vertical, -1, 1) : 0;
+        s.collective = Pose.approach(s.collective, up, 0.2);
+        s.pedal = side; s.cyclicPitch = fwd; s.cyclicRoll = p.turnWithKeys ? 0 : side;
+
+        // heading: turns to face the view (on the ground only while a key is held), or A/D with turn-with: keys
+        double yawRate = 0;
+        boolean keys = Math.abs(fwd) > 0.01 || Math.abs(side) > 0.01 || up > 0.01;
+        if (live && p.turnWithKeys) yawRate = side * p.maxYawRate * (s.onGround ? 0.3 : 1);
+        else if (live && (!s.onGround || keys)) yawRate = Pose.clamp(Pose.wrap(in.lookYaw - pose.yaw) * p.turnGain, -p.maxYawRate, p.maxYawRate) * (s.onGround ? 0.4 : 1);
+        if (Math.abs(yawRate) > p.clampYawRate) { yawRate = Math.signum(yawRate) * p.clampYawRate; r.clamp = "yaw rate"; }
+        pose.yaw = Pose.wrap(pose.yaw + yawRate * dt);
+        s.yawRate = yawRate * dt;
+        r.yawRate = yawRate;
+
+        // horizontal: approach the velocity the keys ask for (accel-time to full speed, brake-time back to hover)
+        double speedLimit = p.maxSpeed * Pose.clamp(in.speedLimitFactor, 0.05, 1);
+        Vector3d f = pose.forwardFlat(), rt = pose.rightFlat();
+        Vector3d target = new Vector3d();
+        if (live && !s.onGround) {
+            double tf = fwd >= 0 ? fwd : fwd * p.reverseFactor, ts = p.turnWithKeys ? 0 : side * p.strafeFactor;
+            target.set(f.x * tf + rt.x * ts, 0, f.z * tf + rt.z * ts);
+            if (target.length() > 1) target.normalize();
+            target.mul(speedLimit * Pose.clamp(in.powerFactor, 0.2, 1));
+        }
+        Vector3d vh = new Vector3d(s.vel.x, 0, s.vel.z);
+        boolean speedingUp = target.length() > vh.length() + 0.05;
+        double rate = p.maxSpeed / (speedingUp ? p.accelTime : p.brakeTime);
+        if (!live && !s.onGround) rate *= 0.3;        // engine out: drifts on
+        Vector3d dv = new Vector3d(target).sub(vh);
+        double step = rate * dt;
+        if (dv.length() > step) dv.normalize().mul(step);
+        vh.add(dv);
+        r.thrust = speedingUp ? rate : 0; r.brake = speedingUp ? 0 : rate;
+        if (s.onGround) vh.mul(Math.exp(-6 * dt));
+        double sp = vh.length(), hClamp = Math.min(p.clampHorizontal, speedLimit);
+        if (sp > hClamp) { vh.mul(hClamp / sp); r.clamp = speedLimit < p.maxSpeed ? "unloaded chunks ahead" : "max horizontal speed"; }
+        if (vh.length() < 0.02) vh.set(0, 0, 0);
+
+        // the body tilts into the motion (visual only): nose down when speeding up / flying forward, bank into turns
+        double vf = vh.x * f.x + vh.z * f.z, vs = vh.x * rt.x + vh.z * rt.z;
+        double pitchT = s.onGround ? s.bodyPitchTarget : -p.visualTilt * Pose.clamp(0.6 * vf / p.maxSpeed + 0.4 * (speedingUp ? Math.signum(fwd) : 0), -1, 1);
+        double rollT = s.onGround ? s.bodyRollTarget : p.visualTilt * Pose.clamp(0.6 * vs / p.maxSpeed + 0.5 * yawRate / Math.max(1, p.maxYawRate), -1, 1);
+        pose.pitch = Pose.approachAngle(pose.pitch, pitchT, p.tiltRate * dt);
+        pose.roll = Pose.approachAngle(pose.roll, rollT, p.tiltRate * dt);
+        r.pitch = pose.pitch; r.roll = pose.roll;
+
+        s.vel.set(vh.x, vertical(pose, s, r, agl, h), vh.z);
+    }
+
+    /** Vertical speed: the collective sets a climb / descent rate (altitude hold at 0); engine off autorotates. */
+    private double vertical(Pose pose, PhysicsState s, Report r, double agl, Obb h) {
+        double dt = Units.DT;
         double maxAlt = p.maxAltitude > 0 ? p.maxAltitude : Double.MAX_VALUE;
         double vy = s.vel.y;
         if (s.spool >= 0.95 && s.engineOn) {
@@ -170,9 +257,10 @@ public final class HelicopterModel {
         else vy = Math.min(0, vy);
         if (vy > p.clampClimb) { vy = p.clampClimb; r.clamp = "max climb"; }
         if (vy < -p.clampDescent && (s.engineOn || s.spool > 0.2)) { vy = -p.clampDescent; r.clamp = "max descent"; }
-        s.vel.set(vh.x, vy, vh.z);
+        return vy;
+    }
 
-        // integrate
+    private Report integrate(Pose pose, PhysicsState s, Report r, BlockCollider col, boolean live) {
         Vector3d delta = new Vector3d(Units.perTick(s.vel.x), Units.perTick(s.vel.y), Units.perTick(s.vel.z));
         int sub = Math.max(1, (int) Math.ceil(delta.length() / 0.5));
         Vector3d step = new Vector3d(delta).div(sub);

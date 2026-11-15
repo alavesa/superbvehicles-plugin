@@ -3,6 +3,11 @@ display-name: "<gold>Mi-28 Attack Helicopter"
 class: helicopter
 model: mi28
 physics:
+  flight-model: simple       # simple: W/S/A/D move, mouse turns, Space up, Shift down, no keys = hover | realistic: the 0.2 cyclic/collective model
+  accel-time: 3.0             # simple: seconds from hover to max-speed
+  brake-time: 1.8             # simple: seconds from max-speed back to hover after letting go
+  turn-with: view            # simple: view (turns to face where you look, A/D strafe) | keys (A/D turn)
+  chase-camera: true         # third-person chase view for the pilot (/sbv camera to switch per player)
   mass: 8600
   max-speed: 32
   climb-rate: 7

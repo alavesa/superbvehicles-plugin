@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** "Helicopters are far too fast" regression tests: the model in open air over a flat floor. */
+/** "Helicopters are far too fast" regression tests for the realistic flight model, in open air over a flat floor. */
 class HelicopterModelTest {
     static final class Sim {
         final HelicopterModel m; final Pose pose = new Pose(); final PhysicsState s = new PhysicsState();
@@ -15,7 +15,9 @@ class HelicopterModelTest {
         HelicopterModel.Report last;
         Sim(String id) {
             VehicleType t = WheeledVehicleControllerTest.type(id);
-            m = new HelicopterModel(HelicopterModel.Params.of(t), WheeledVehicleControllerTest.box(1.0, 1.0, 2.5));
+            HelicopterModel.Params params = HelicopterModel.Params.of(t);
+            params.simple = false;      // these tests cover the realistic model; HelicopterSimpleTest the default one
+            m = new HelicopterModel(params, WheeledVehicleControllerTest.box(1.0, 1.0, 2.5));
             pose.y = 200; pose.modelYaw = 180;
             s.engineOn = true; s.spool = 1;
             in.driver = true; in.engineOn = true; in.cyclicFromView = false;

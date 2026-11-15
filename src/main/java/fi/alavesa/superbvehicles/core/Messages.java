@@ -65,7 +65,8 @@ public final class Messages {
         return out;
     }
 
-    public static TagResolver str(String name, String value) { return Placeholder.unparsed(name, value == null ? "" : value); }
+    /** Plain text placeholder; {@code <name>} is a vehicle display name (admin-written MiniMessage) and is parsed. */
+    public static TagResolver str(String name, String value) { return "name".equals(name) ? Placeholder.parsed(name, value == null ? "" : value) : Placeholder.unparsed(name, value == null ? "" : value); }
     public static TagResolver num(String name, double value) { return Placeholder.unparsed(name, Math.abs(value - Math.rint(value)) < 1e-9 ? String.valueOf((long) Math.rint(value)) : String.format(java.util.Locale.ROOT, "%.1f", value)); }
     public static TagResolver comp(String name, Component c) { return Placeholder.component(name, c); }
 }

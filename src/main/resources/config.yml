@@ -53,13 +53,32 @@ seats:
   enter-range: 4.5
   dismount-speed: 6.0             # ground vehicles: sneak leaves only below this speed (blocks/s)
   bail-out-ticks: 8               # aircraft: double-tap sneak within this many ticks to bail out
+  bail-hold-seconds: 1.0          # simple-model helicopter pilots: hold jump + sneak this long in the air to bail out
   eject-velocity: 1.2
   rider-offset: 0.6               # blocks the seat marker sits below the rider's seat point (vanilla attachment)
+
+# Third-person chase view (/sbv camera chase|cockpit per player). The rider's seat moves behind the vehicle and
+# follows their view like F5; others see a stand-in with the rider's skin in the real seat.
+camera:
+  enabled: true
+  default: chase                  # chase | cockpit, for players who never used /sbv camera
+  vehicles: [helicopter]          # vehicle classes with the chase view (helicopter, plane, wheeled, tracked, boat)
+  seats: driver                   # driver | all
+  distance: 0                     # blocks behind the vehicle; 0 = from the vehicle size (6..18)
+  height: 1.2                     # pivot above the top of the hull
+  min-distance: 1.5               # closest the camera gets when a wall is in the way
+  min-pitch: -25                  # looking up further does not move the camera under the vehicle
+  max-pitch: 75
+  eye-above-stand: 1.02           # vanilla: player eye height 1.62 minus the riding offset 0.6
+  stand-in: true                  # hide the rider (invisible, equipment hidden for others) and show a mannequin in the seat
 
 controls:
   wheeled:   { throttle: forward, brake: backward, steer: left_right, handbrake: jump, fire: sprint, engine: swap_hands, horn: drop }
   tracked:   { throttle: forward, brake: backward, steer: left_right, handbrake: jump, fire: sprint, engine: swap_hands }
   boat:      { throttle: forward, brake: backward, steer: left_right, fire: sprint, engine: swap_hands }
+  # helicopters on the simple flight model (default): W/S/A/D move, mouse turns, jump up, sneak down
+  helicopter-simple: { fire: sprint, engine: swap_hands, countermeasure: use }
+  # helicopters with physics.flight-model: realistic
   helicopter: { collective-up: forward, collective-down: backward, pedals: left_right, fire: jump, engine: swap_hands, countermeasure: sprint }
   plane:     { throttle-up: forward, throttle-down: backward, rudder: left_right, fire: jump, airbrake: sprint, gear: swap_hands, countermeasure: drop }
   static:    { fire: jump, alt-fire: sprint }

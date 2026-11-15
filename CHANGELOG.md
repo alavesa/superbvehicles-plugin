@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.6.0 - 2026-11-15
+
+### Added
+- **Third-person chase view for helicopter pilots.** The pilot's seat moves behind and above the helicopter along
+  their view direction (like F5 with the aircraft centred), pulled in front of walls. Others see a mannequin with the
+  pilot's skin, name and equipment in the cockpit; the pilot's own body is hidden (short self-refreshing
+  invisibility, equipment sent empty to other players; the tab list is untouched). Riders in the chase view take no
+  suffocation, fire or contact damage at the camera spot. `/sbv camera [chase|cockpit]` per player (saved),
+  `camera:` in config.yml (default view, distance, height, classes, seats, stand-in).
+- **Simple helicopter flight model (new default).** W/S fly forward / back, A/D strafe, the helicopter turns to face
+  where you look, Space climbs, Shift descends; no keys brakes to a hover and holds altitude. Speed builds up over
+  `accel-time` and bleeds off over `brake-time`; the body lean is only visual. Ctrl fires, right-click pops flares,
+  F toggles the engine (`controls.helicopter-simple`). The 0.2 model stays available with
+  `physics.flight-model: realistic`.
+- Pilots see a short controls line when they take the pilot seat.
+
+### Fixed
+- Chat messages showed vehicle names with raw MiniMessage tags ("<gold>AH-6 ...").
+
+### Changed
+- Simple-model pilots: a Shift held from the air no longer dismounts at touchdown (press it again to get out);
+  bailing out is Space + Shift held for `seats.bail-hold-seconds` (1 s) instead of a double-tapped Shift.
+- `/sbv seat <n>` also enters the vehicle you are looking at (before, only while already seated).
+- Driver weapon keys that are one-shot presses (right-click, Q, F, left-click) now also reach the driver's weapons.
+
 ## 0.5.0 - 2026-11-14
 
 ### Fixed

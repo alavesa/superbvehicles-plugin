@@ -29,6 +29,7 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
     private fi.alavesa.superbvehicles.seat.SeatManager seats;
     private fi.alavesa.superbvehicles.weapon.ProjectileManager projectiles;
     private fi.alavesa.superbvehicles.hud.HudManager hud;
+    private fi.alavesa.superbvehicles.seat.ChaseCamera camera;
     private fi.alavesa.superbvehicles.damage.DamageModel damage;
     private fi.alavesa.superbvehicles.core.Persistence persistence;
     private fi.alavesa.superbvehicles.core.Items items;
@@ -58,6 +59,7 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         vehicles = new fi.alavesa.superbvehicles.core.VehicleManager(this);
         seats = new fi.alavesa.superbvehicles.seat.SeatManager(this);
         hud = new fi.alavesa.superbvehicles.hud.HudManager(this);
+        camera = new fi.alavesa.superbvehicles.seat.ChaseCamera(this);
         persistence = new fi.alavesa.superbvehicles.core.Persistence(this);
         host = new PackHost(this);
         host.start();
@@ -75,6 +77,7 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
 
     @Override public void onDisable() {
         try { if (persistence != null) persistence.save(); } catch (Exception e) { getLogger().warning("save failed: " + e); }
+        if (camera != null) camera.shutdown();
         if (vehicles != null) vehicles.shutdown();
         if (projectiles != null) projectiles.clear();
         if (host != null) host.stop();
@@ -161,6 +164,7 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
     public fi.alavesa.superbvehicles.seat.SeatManager seats() { return seats; }
     public fi.alavesa.superbvehicles.weapon.ProjectileManager projectiles() { return projectiles; }
     public fi.alavesa.superbvehicles.hud.HudManager hud() { return hud; }
+    public fi.alavesa.superbvehicles.seat.ChaseCamera camera() { return camera; }
     public fi.alavesa.superbvehicles.damage.DamageModel damage() { return damage; }
     public fi.alavesa.superbvehicles.core.Persistence persistence() { return persistence; }
     public fi.alavesa.superbvehicles.core.Items items() { return items; }

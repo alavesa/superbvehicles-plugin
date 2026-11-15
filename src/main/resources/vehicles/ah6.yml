@@ -3,6 +3,11 @@ display-name: "<gold>AH-6 Light Helicopter"
 class: helicopter
 model: ah6
 physics:
+  flight-model: simple       # simple: W/S/A/D move, mouse turns, Space up, Shift down, no keys = hover | realistic: the 0.2 cyclic/collective model
+  accel-time: 2.0             # simple: seconds from hover to max-speed
+  brake-time: 1.2             # simple: seconds from max-speed back to hover after letting go
+  turn-with: view            # simple: view (turns to face where you look, A/D strafe) | keys (A/D turn)
+  chase-camera: true         # third-person chase view for the pilot (/sbv camera to switch per player)
   mass: 1600                 # kg
   max-speed: 28              # blocks/s horizontal (quadratic drag saturates here)
   climb-rate: 8              # blocks/s

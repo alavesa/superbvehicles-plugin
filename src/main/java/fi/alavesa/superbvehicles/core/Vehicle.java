@@ -83,6 +83,8 @@ public final class Vehicle {
     public double[] hitboxHalfPx = {16, 16, 16}, hitboxCenterPx = {0, 16, 0};
     public final Map<String, double[]> wheelLocators = new LinkedHashMap<>();   // name -> rest px
     public int soundTick, lastHudTick;
+    /** Last server tick this vehicle was in the air (simple helicopters: a sneak held since then does not dismount). */
+    public int lastAirborneTick = Integer.MIN_VALUE / 2;
     public String lastState = "";
     public boolean debugHitbox;
 
@@ -238,6 +240,7 @@ public final class Vehicle {
     }
 
     public void despawnEntities() {
+        plugin.camera().release(this);
         for (SeatSlot s : seats) {
             if (s.stand != null) { for (Entity p : new ArrayList<>(s.stand.getPassengers())) plugin.seats().forced(() -> s.stand.removePassenger(p)); s.stand.remove(); s.stand = null; }
             if (s.click != null) { s.click.remove(); s.click = null; }
@@ -286,6 +289,7 @@ public final class Vehicle {
             if (type.vehicleClass != VehicleClass.STATIC && plugin.flag("physics.ram.enabled", true)) physics.ram();
         }
         controls.clearEdges();
+        if (phys.airborne || !phys.onGround && type.vehicleClass.aircraft()) lastAirborneTick = serverTick;
         if (plugin.vehicles().debugging(this)) plugin.vehicles().debugTick(this);
         // fuel (consumption: units per second at full load)
         if (plugin.flag("fuel.enabled", true) && phys.engineOn && type.fuelCapacity > 0) {
@@ -371,7 +375,8 @@ public final class Vehicle {
             if (s.stand == null || !s.stand.isValid()) continue;
             Vector3d w = seatWorld(s);
             w.y += phys.visualYOffset;          // riders follow the eased body, not the physics step
-            Location standLoc = new Location(world, w.x, w.y - riderOffset, w.z, (float) (pose.yaw + s.def.yawOffset), 0f);
+            Location seatLoc = new Location(world, w.x, w.y - riderOffset, w.z, (float) (pose.yaw + s.def.yawOffset), 0f);
+            Location standLoc = plugin.camera().place(this, s, seatLoc);   // chase view: the stand goes behind the vehicle
             if (s.stand.getPassengers().isEmpty()) { if (s.stand.getLocation().distanceSquared(standLoc) > 1e-6) s.stand.teleport(standLoc); }
             else s.stand.teleport(standLoc, TeleportFlag.EntityState.RETAIN_PASSENGERS);
             if (s.click != null && s.click.isValid()) {

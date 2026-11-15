@@ -87,6 +87,9 @@ public final class SbvCommand {
         for (String m : new String[]{"shader", "text", "off"}) hud.then(Commands.literal(m).executes(c -> hudMode(c, m)));
         hud.then(Commands.literal("units").then(Commands.literal("kmh").executes(c -> hudUnits(c, false))).then(Commands.literal("mph").executes(c -> hudUnits(c, true))));
         root.then(hud);
+        root.then(Commands.literal("camera").executes(c -> camera(c, null))
+            .then(Commands.literal("chase").executes(c -> camera(c, true)))
+            .then(Commands.literal("cockpit").executes(c -> camera(c, false))));
         root.then(admin(Commands.literal("seatoffset"))
             .then(Commands.argument("type", StringArgumentType.word()).suggests(typeIds()).executes(c -> seatOffsetShow(c, null))
                 .then(Commands.argument("seat", StringArgumentType.word()).suggests(seatNames()).executes(c -> seatOffsetShow(c, StringArgumentType.getString(c, "seat")))
@@ -103,8 +106,20 @@ public final class SbvCommand {
     private void help(CommandSender s) {
         s.sendMessage(Component.text("SuperbVehicles " + plugin.getPluginMeta().getVersion(), NamedTextColor.GOLD));
         s.sendMessage(Component.text("/sbv give <type> [player] [amount] | spawn <type> [x y z] | remove [radius] | removeall [type] | list | info", NamedTextColor.GRAY));
-        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n> | hud [shader|text|off|units kmh|mph] | seatoffset <type> <seat> <r> <u> <f>", NamedTextColor.GRAY));
+        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n> | hud [shader|text|off|units kmh|mph] | camera [chase|cockpit] | seatoffset <type> <seat> <r> <u> <f>", NamedTextColor.GRAY));
         s.sendMessage(Component.text("/sbv reload | pack [rebuild|send|url] | import <file.bbmodel> | item fuel|ammo|repair | debug hitboxes|physics|seats|perf", NamedTextColor.GRAY));
+    }
+
+    /** /sbv camera [chase|cockpit]: no argument toggles. Takes effect at once, also mid-flight. */
+    private int camera(CommandContext<CommandSourceStack> c, Boolean chase) {
+        Player p = player(c);
+        if (p == null) return 0;
+        Boolean pref = plugin.camera().preference(p);
+        boolean current = pref != null ? pref : !"cockpit".equalsIgnoreCase(plugin.getConfig().getString("camera.default", "chase"));
+        boolean now = chase != null ? chase : !current;
+        plugin.camera().set(p, now);
+        plugin.messages().send(p, "camera-mode", Messages.str("mode", now ? "chase (third person)" : "cockpit (first person)"));
+        return 1;
     }
 
     private Player player(CommandContext<CommandSourceStack> c) { return c.getSource().getExecutor() instanceof Player p ? p : c.getSource().getSender() instanceof Player p ? p : null; }
@@ -335,6 +350,7 @@ public final class SbvCommand {
     private int seat(CommandContext<CommandSourceStack> c) {
         Player p = player(c); if (p == null) return 0;
         Vehicle v = plugin.vehicles().byPlayer(p);
+        if (v == null) v = plugin.vehicles().target(p);      // not seated yet: the vehicle in sight
         if (v == null) { plugin.messages().send(p, "no-vehicle"); return 0; }
         int n = IntegerArgumentType.getInteger(c, "number") - 1;
         if (n >= v.seats.length) { plugin.messages().send(p, "no-free-seat"); return 0; }

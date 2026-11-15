@@ -28,7 +28,8 @@ Permissions: `superbvehicles.admin` (all commands), `superbvehicles.use.<id>` (e
 `/sbv give <type> [player] [amount]`, `spawn <type> [x y z]`, `remove [radius]`, `removeall [type]`, `list`, `info`,
 `repair [amount]`, `refuel [amount]`, `ammo`, `skin <name>`, `lock`, `unlock`, `tp <id>`, `seat <n>`, `reload`,
 `pack [rebuild|send|url]`, `import <file.bbmodel>`, `item fuel|ammo|repair`,
-`debug hitboxes|physics|seats|perf`. Aliases `/superbvehicles`, `/vehicle`. Tab completion everywhere.
+`debug hitboxes|physics|seats|perf`, `hud [shader|text|off|units kmh|mph]`, `camera [chase|cockpit]` (players: chase
+view on/off, no argument toggles). Aliases `/superbvehicles`, `/vehicle`. Tab completion everywhere.
 
 ## Controls
 
@@ -41,10 +42,21 @@ double-tap sneak in the air bails out with slow falling). Keys are configurable 
 | wheeled | throttle / brake-reverse | steer | handbrake (drift) | fire (driver weapons) | engine on/off | - |
 | tracked | throttle / brake-reverse | differential steer (neutral turn when stopped) | handbrake | fire | engine | - |
 | boat | throttle / reverse | rudder | - | fire | engine | - |
-| helicopter | collective up / down | pedals (yaw) | fire | countermeasure | engine (spool-up) | cyclic: look down = nose down and forward, look left/right = bank |
+| helicopter (simple, default) | fly forward / back | fly sideways | climb (Shift = descend) | fire | engine | the helicopter turns to face where you look; no keys = brake to a hover and hold altitude; right-click = flares |
+| helicopter (`flight-model: realistic`) | collective up / down | pedals (yaw) | fire | countermeasure | engine (spool-up) | cyclic: look down = nose down and forward, look left/right = bank |
 | plane | throttle up / down | rudder (nose wheel on the ground) | fire | airbrake | landing gear | pitch follows the look pitch, bank follows the look yaw and turns the aircraft; flaps are automatic below `flap-speed` with the gear down |
 | static | - | - | fire | alt | - | aim |
 | gunner seat | - | - | fire (hold for automatic) | alt fire | countermeasure | aim; hotbar 1-9 selects the seat's weapons |
+
+**Helicopters (0.6.0)** fly on the simple model unless the YAML says `flight-model: realistic`: Space up, Shift down
+(like creative flight), W/S/A/D move, the mouse turns. Because Shift is "descend", the pilot gets out with a fresh
+Shift press after landing (a Shift held from the air does not dismount), and bails out by holding Space + Shift in
+the air for `seats.bail-hold-seconds`. Pilots get a third-person **chase view**: their seat is moved behind and above
+the helicopter along their own view direction (like F5, but with the aircraft centred), pulled closer when a wall is
+in the way. Other players see a mannequin with the pilot's skin, name and equipment in the cockpit, and the pilot's
+body is hidden (invisible, equipment sent empty to others; the tab list is untouched). `/sbv camera` switches between
+chase and cockpit per player; `camera:` in config.yml sets the default, the distance and which classes / seats get it
+(`vehicles: [helicopter, plane]` adds planes).
 
 Guided weapons: `wire` / `laser` steer toward the gunner's aim point, `lock` needs a lock (hold the target in the
 lock cone for `lock-time`; the target sees a LOCK warning and may pop flares). The engine starts on the first
@@ -218,7 +230,13 @@ Rule of thumb: time to 80% of max speed is about `1.1 x max-speed x mass / engin
 pickup 6-8 s and a truck 10-12 s (both checked by unit tests). At startup and on `/sbv reload` every ground type is
 simulated for 3 s of full throttle; a type below 20% of its max speed gets a console warning naming the cause.
 
-**Helicopters**: `max-speed` (horizontal blocks/s - quadratic drag makes full cyclic level off exactly there),
+**Helicopters, simple model**: `max-speed`, `climb-rate`, `descent-rate`, `max-yaw-rate`, `accel-time` (seconds to
+full speed), `brake-time` (seconds back to hover), `reverse-factor` / `strafe-factor` (fractions of max-speed),
+`turn-with` (`view` or `keys`: A/D turn instead of strafe), `turn-gain`, `visual-tilt` (degrees the body leans into
+the motion; only visual), `vertical-accel`, `spool-time`, `autorotation-descent`, `chase-camera` (false = no chase view
+for this type).
+
+**Helicopters, realistic model**: `max-speed` (horizontal blocks/s - quadratic drag makes full cyclic level off exactly there),
 `climb-rate`, `descent-rate`, `max-yaw-rate`, `max-tilt` (rotor disc, degrees), `tilt-rate-deg`, `vertical-accel`,
 `spool-time`, `autorotation-descent`, `hover-settle-time` (seconds from full speed to hover after letting go), hard
 clamps `max-horizontal-speed`, `max-climb-speed`, `max-descent-speed`, `auto-stabilise`.
