@@ -85,6 +85,8 @@ public final class Vehicle {
     public int soundTick, lastHudTick;
     /** Last server tick this vehicle was in the air (simple helicopters: a sneak held since then does not dismount). */
     public int lastAirborneTick = Integer.MIN_VALUE / 2;
+    private int autopilotTicks; private double autopilotThrottle;
+    public void autopilot(int ticks, double throttle) { autopilotTicks = ticks; autopilotThrottle = throttle; }
     public String lastState = "";
     public boolean debugHitbox;
 
@@ -279,7 +281,15 @@ public final class Vehicle {
             controls.held(plugin.seats().inputOf(driver));
             controls.lookYaw = driver.getLocation().getYaw(); controls.lookPitch = driver.getLocation().getPitch();
             plugin.seats().drainEdges(driver, controls);
-        } else controls.held(null);
+        } else {
+            controls.held(null);
+            if (autopilotTicks > 0) {      // /sbv debug drive: console test drive without a client
+                controls.present = !wreck;
+                controls.forward = autopilotThrottle > 0; controls.backward = autopilotThrottle < 0;
+                controls.lookYaw = (float) pose.yaw; controls.lookPitch = 0;
+                if (--autopilotTicks == 0) plugin.getLogger().info(String.format(java.util.Locale.ROOT, "autopilot %s done at %.2f %.2f %.2f yaw %.1f speed %.2f b/s | %s", this, pose.x, pose.y, pose.z, pose.yaw, phys.speed, physics.debugLine()));
+            }
+        }
         // physics (guarded: a NaN or a runaway speed freezes the vehicle and logs once instead of flinging it away)
         if (!dormant) {
             Pose before = pose.copy();

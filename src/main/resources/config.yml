@@ -28,6 +28,7 @@ render:
 physics:
   # UNITS: blocks (= metres), blocks/second, blocks/second^2, degrees, degrees/second, kilograms, newtons.
   # Vehicle YAMLs use the same units; the plugin converts to per-tick values in exactly one place.
+  min-step-height: 1.05           # blocks: every car / tank climbs at least this (slabs, paths, full blocks), whatever its file says
   gravity: 32                     # blocks/s^2 (vanilla entities fall at 0.08 blocks/tick^2 = 32 blocks/s^2)
   max-speed-cap: 80               # blocks/s absolute safety limit for any vehicle
   speed-limit-by-chunk-loading: true   # slow vehicles heading into unloaded / still-generating chunks
@@ -70,6 +71,13 @@ camera:
   min-pitch: -25                  # looking up further does not move the camera under the vehicle
   max-pitch: 75
   eye-above-stand: 1.02           # vanilla: player eye height 1.62 minus the riding offset 0.6
+  scroll-zoom: true               # mouse wheel zooms the chase view in / out (the hotbar is pinned to scroll-slot meanwhile)
+  scroll-slot: 7                  # 1-9; keep it above the seat's weapon count (keys 1..scroll-slot-2 still pick weapons)
+  zoom-step: 1.15                 # distance factor per wheel step
+  min-zoom: 0.3                   # of the default distance
+  max-zoom: 3.0
+  min-zoom-distance: 2.5          # blocks, whatever the zoom
+  max-zoom-distance: 40
   stand-in: true                  # hide the rider (invisible, equipment hidden for others) and show a mannequin in the seat
 
 controls:
@@ -115,6 +123,7 @@ hud:
   update-ticks: 2                 # how often the HUD is evaluated; it is only re-sent when a value changed
   smoothing: 0.35                 # 0..1 per tick, server-side smoothing of the needle / gauges
   flash-ticks: 50                 # plugin messages to a rider are shown inside the HUD line this long
+  merge-cctv: true                # with the CCTV plugin installed, the HUD text shader also carries CCTV's hooks
   glyphs: true                    # bar glyphs in the text HUD (from the models pack)
   action-bar: true
   boss-bar: health                # health | fuel | none

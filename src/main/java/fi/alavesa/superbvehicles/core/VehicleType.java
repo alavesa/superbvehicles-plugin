@@ -93,7 +93,7 @@ public final class VehicleType {
         enginePower = physics("engine-power", defaultPower(vehicleClass));
         maxSpeed = physics("max-speed", defaultSpeed(vehicleClass));
         turnRate = physics("turn-rate", vehicleClass == VehicleClass.TRACKED ? 2.0 : vehicleClass == VehicleClass.BOAT ? 1.5 : 3.0);
-        stepHeight = physics("step-height", vehicleClass == VehicleClass.TRACKED ? 1.1 : 0.6);
+        stepHeight = physics("step-height", vehicleClass == VehicleClass.TRACKED ? 1.1 : vehicleClass == VehicleClass.BOAT ? 0.6 : 1.05);
         health = Math.max(1, s.getDouble("health", defaultHealth(vehicleClass)));
         ConfigurationSection a = s.getConfigurationSection("armor");
         for (String z : new String[]{"front", "side", "rear", "top", "bottom"}) armor.put(z, a == null ? 0.0 : a.getDouble(z, z.equals("bottom") ? a.getDouble("top", 0) : 0));

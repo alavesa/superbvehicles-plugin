@@ -19,6 +19,7 @@ heli-controls: "<prefix><gray>Fly: <white>W/S</white> forward/back, <white>A/D</
 heli-release-sneak: "<yellow>Landed - release Shift and press it again to get out."
 bail-hold: "<yellow>Bailing out... <percent>%"
 camera-hint: "<prefix><gray>Chase view on. <white>/sbv camera</white> switches to the cockpit view."
+camera-zoom: "<gray>Camera distance <white><percent>%</white>"
 camera-mode: "<prefix><gray>Vehicle camera: <white><mode></white>."
 destroyed: "<red>The <name> was destroyed!"
 repaired: "<prefix><green>Repaired <name> by <amount>."

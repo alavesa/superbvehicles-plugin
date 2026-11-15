@@ -47,7 +47,9 @@ public final class WheeledVehicleController {
         public double lateralGrip = 8;             // 1/s: lateral speed decays by e^(-grip*t)
         public double driftGrip = 1.2;             // 1/s under the handbrake
         public double airGrip = 0.2;               // 1/s airborne
-        public double stepHeight = 0.6;            // blocks
+        public double stepHeight = 1.05;           // blocks
+        /** Floor for every ground vehicle's step height (config physics.min-step-height; set by the plugin). */
+        public static volatile double minStepHeight = 1.05;
         public double steerAngle = 32;             // degrees at standstill
         public double steerFalloff = 0.85;         // fraction of the steer angle lost at max speed
         public double maxYawRate = 60;             // degrees/s hard limit
@@ -82,7 +84,9 @@ public final class WheeledVehicleController {
             p.parkingBrakeForce = Math.max(0, t.physics("parking-brake-force", p.mass * 6));
             p.lateralGrip = Math.max(0, t.physics("lateral-grip", p.steering == Steering.DIFFERENTIAL ? 12 : 8));
             p.driftGrip = Math.max(0, t.physics("drift-grip", 1.2));
-            p.stepHeight = Math.max(0, t.physics("step-height", t.stepHeight)) * t.scale;
+            // world blocks, NOT scaled with the model (0.6 at scale 0.6 was 0.36 blocks: stuck at every slab), and never
+            // below physics.min-step-height (old vehicle files on servers still say 0.6-0.7)
+            p.stepHeight = Math.max(minStepHeight, Math.max(0, t.physics("step-height", t.stepHeight)));
             p.steerAngle = t.physics("steer-angle", 32);
             p.steerFalloff = Pose.clamp(t.physics("steer-falloff", 0.85), 0, 0.95);
             p.maxYawRate = Math.max(5, t.physics("max-yaw-rate", p.steering == Steering.DIFFERENTIAL ? 45 : 60));

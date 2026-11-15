@@ -48,6 +48,7 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         });
         messages.load();
         extractDefaults();
+        applyPhysicsDefaults();
         types = new TypeRegistry();
         types.load(new File(getDataFolder(), "vehicles"));
         for (String e : types.errors) getLogger().warning("vehicles/: " + e);
@@ -73,6 +74,11 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         rebuildPack(null);
         persistence.load();
         getLogger().info("SuperbVehicles " + getPluginMeta().getVersion() + " enabled.");
+    }
+
+    /** Static physics settings read by the pure models (call before vehicle types / physics are created). */
+    public void applyPhysicsDefaults() {
+        fi.alavesa.superbvehicles.physics.WheeledVehicleController.Params.minStepHeight = Math.max(0, getConfig().getDouble("physics.min-step-height", 1.05));
     }
 
     @Override public void onDisable() {
@@ -114,9 +120,18 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         java.util.List<Integer> colours = pluginColours();
         fi.alavesa.superbvehicles.hud.HudLayout layout = fi.alavesa.superbvehicles.hud.HudLayout.of(getConfig().getConfigurationSection("hud"));
         File hudZip = new File(new File(getDataFolder(), "pack"), "SuperbVehicles-hud.zip");
+        // CCTV replaces the same vanilla text shader: merge its hooks in (see HudShaders.vertex(layout, cctv))
+        java.util.Map<String, byte[]> cctv = null;
+        org.bukkit.plugin.Plugin cctvPlugin = getServer().getPluginManager().getPlugin("CCTV");
+        if (cctvPlugin != null && getConfig().getBoolean("hud.merge-cctv", true)) {
+            cctv = fi.alavesa.superbvehicles.pack.HudPackBuilder.cctvIncludes(new File(cctvPlugin.getDataFolder(), "cctv-pack.zip"));
+            getLogger().info(cctv != null ? "Shader HUD: CCTV found - the HUD text shader carries CCTV's hooks too, so both plugins' shaders work together"
+                : "Shader HUD: CCTV found but plugins/CCTV/cctv-pack.zip has no text-shader includes - not merged (one of the two HUDs may not show)");
+        }
+        final java.util.Map<String, byte[]> cctvIncludes = cctv;
         sched.asyncThen(() -> {
             try { box[0] = builder.build(); } catch (Exception e) { throw new RuntimeException(e); }
-            if (buildHud) { try { hudBox[0] = new fi.alavesa.superbvehicles.pack.HudPackBuilder(hudZip, layout, colours).build(); } catch (Exception e) { getLogger().warning("Shader HUD pack build failed: " + e + " - players get the text HUD"); } }
+            if (buildHud) { try { hudBox[0] = new fi.alavesa.superbvehicles.pack.HudPackBuilder(hudZip, layout, colours, cctvIncludes).build(); } catch (Exception e) { getLogger().warning("Shader HUD pack build failed: " + e + " - players get the text HUD"); } }
             else hudZip.delete();
         }, err -> {
             packBuilding = false;

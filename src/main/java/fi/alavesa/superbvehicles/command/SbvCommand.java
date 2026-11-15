@@ -76,7 +76,9 @@ public final class SbvCommand {
             .then(Commands.literal("hitboxes").executes(c -> debug(c, "hitboxes")))
             .then(Commands.literal("physics").executes(c -> debug(c, "physics")))
             .then(Commands.literal("seats").executes(c -> debug(c, "seats")))
-            .then(Commands.literal("perf").executes(c -> debug(c, "perf"))));
+            .then(Commands.literal("perf").executes(c -> debug(c, "perf")))
+            .then(Commands.literal("drive").then(Commands.argument("seconds", DoubleArgumentType.doubleArg(0.05, 120)).executes(c -> autopilot(c, 1))
+                .then(Commands.argument("throttle", DoubleArgumentType.doubleArg(-1, 1)).executes(c -> autopilot(c, DoubleArgumentType.getDouble(c, "throttle")))))));
         root.then(admin(Commands.literal("item"))
             .then(Commands.literal("fuel").executes(c -> utility(c, "fuel_can")))
             .then(Commands.literal("ammo").executes(c -> utility(c, "ammo_crate")))
@@ -89,7 +91,12 @@ public final class SbvCommand {
         root.then(hud);
         root.then(Commands.literal("camera").executes(c -> camera(c, null))
             .then(Commands.literal("chase").executes(c -> camera(c, true)))
-            .then(Commands.literal("cockpit").executes(c -> camera(c, false))));
+            .then(Commands.literal("cockpit").executes(c -> camera(c, false)))
+            .then(Commands.literal("zoom").then(Commands.argument("percent", IntegerArgumentType.integer(10, 1000)).executes(c -> {
+                Player p = player(c); if (p == null) return 0;
+                double z = plugin.camera().setZoom(p, IntegerArgumentType.getInteger(c, "percent") / 100.0);
+                plugin.messages().send(p, "camera-zoom", Messages.num("percent", Math.round(z * 100)));
+                return 1; }))));
         root.then(admin(Commands.literal("seatoffset"))
             .then(Commands.argument("type", StringArgumentType.word()).suggests(typeIds()).executes(c -> seatOffsetShow(c, null))
                 .then(Commands.argument("seat", StringArgumentType.word()).suggests(seatNames()).executes(c -> seatOffsetShow(c, StringArgumentType.getString(c, "seat")))
@@ -106,7 +113,7 @@ public final class SbvCommand {
     private void help(CommandSender s) {
         s.sendMessage(Component.text("SuperbVehicles " + plugin.getPluginMeta().getVersion(), NamedTextColor.GOLD));
         s.sendMessage(Component.text("/sbv give <type> [player] [amount] | spawn <type> [x y z] | remove [radius] | removeall [type] | list | info", NamedTextColor.GRAY));
-        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n> | hud [shader|text|off|units kmh|mph] | camera [chase|cockpit] | seatoffset <type> <seat> <r> <u> <f>", NamedTextColor.GRAY));
+        s.sendMessage(Component.text("/sbv repair [n] | refuel [n] | ammo | skin <name> | lock | unlock | tp <id> | seat <n> | hud [shader|text|off|units kmh|mph] | camera [chase|cockpit|zoom <%>] | seatoffset <type> <seat> <r> <u> <f>", NamedTextColor.GRAY));
         s.sendMessage(Component.text("/sbv reload | pack [rebuild|send|url] | import <file.bbmodel> | item fuel|ammo|repair | debug hitboxes|physics|seats|perf", NamedTextColor.GRAY));
     }
 
@@ -119,6 +126,15 @@ public final class SbvCommand {
         boolean now = chase != null ? chase : !current;
         plugin.camera().set(p, now);
         plugin.messages().send(p, "camera-mode", Messages.str("mode", now ? "chase (third person)" : "cockpit (first person)"));
+        return 1;
+    }
+
+    /** /sbv debug drive <seconds> [throttle]: every empty vehicle drives straight ahead (console testing without a client). */
+    private int autopilot(CommandContext<CommandSourceStack> c, double throttle) {
+        int ticks = (int) Math.round(DoubleArgumentType.getDouble(c, "seconds") * 20);
+        int n = 0;
+        for (Vehicle v : plugin.vehicles().all()) if (v.driver() == null && v.spawned()) { v.autopilot(ticks, throttle); n++; }
+        sender(c).sendMessage(Component.text("Autopilot on " + n + " vehicle(s) for " + ticks + " ticks.", NamedTextColor.GRAY));
         return 1;
     }
 
@@ -359,6 +375,7 @@ public final class SbvCommand {
 
     private int reload(CommandContext<CommandSourceStack> c) {
         plugin.reloadConfig();
+        plugin.applyPhysicsDefaults();
         plugin.messages().load();
         plugin.types().load(new File(plugin.getDataFolder(), "vehicles"));
         plugin.selfCheck();

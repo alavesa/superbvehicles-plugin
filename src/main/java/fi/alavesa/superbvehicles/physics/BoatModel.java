@@ -40,7 +40,7 @@ public final class BoatModel {
             p.planingPitch = t.physics("planing-pitch", 6);
             p.rudder = t.physics("rudder", 1.0);
             p.lateralGrip = t.physics("lateral-grip", 2.5);
-            p.stepHeight = Math.max(0, t.physics("step-height", 0.6)) * t.scale;
+            p.stepHeight = Math.max(0, t.physics("step-height", 0.6));   // world blocks, not scaled with the model
             p.landFriction = t.physics("land-friction", 9);
             p.landGrace = Math.max(0, t.physics("land-grace", 3.0));
             p.landPush = Math.max(0, t.physics("land-push", 13));

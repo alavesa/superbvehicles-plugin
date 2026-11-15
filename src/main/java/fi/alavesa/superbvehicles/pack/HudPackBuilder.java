@@ -64,7 +64,25 @@ public final class HudPackBuilder {
     private final HudLayout layout;
     private final Collection<Integer> pluginColors;
 
-    public HudPackBuilder(File out, HudLayout layout, Collection<Integer> pluginColors) { this.out = out; this.layout = layout; this.pluginColors = pluginColors; }
+    private final Map<String, byte[]> cctvIncludes;   // CCTV's text-shader include files (null = CCTV not installed)
+
+    public HudPackBuilder(File out, HudLayout layout, Collection<Integer> pluginColors) { this(out, layout, pluginColors, null); }
+    public HudPackBuilder(File out, HudLayout layout, Collection<Integer> pluginColors, Map<String, byte[]> cctvIncludes) { this.out = out; this.layout = layout; this.pluginColors = pluginColors; this.cctvIncludes = cctvIncludes; }
+
+    /** CCTV's two text-shader include files from its pack zip (the 26.3 overlay first), or null when not found. */
+    public static Map<String, byte[]> cctvIncludes(File cctvPackZip) {
+        if (cctvPackZip == null || !cctvPackZip.isFile()) return null;
+        Map<String, byte[]> out = new LinkedHashMap<>();
+        try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(cctvPackZip)) {
+            for (String name : new String[]{"cctv_text_vertex.glsl", "cctv_text_fragment.glsl"}) {
+                java.util.zip.ZipEntry e = z.getEntry("cctv_26_3/assets/cctv/shaders/include/" + name);
+                if (e == null) e = z.getEntry("assets/cctv/shaders/include/" + name);
+                if (e == null) return null;
+                try (var in = z.getInputStream(e)) { out.put("assets/cctv/shaders/include/" + name, in.readAllBytes()); }
+            }
+        } catch (IOException e) { return null; }
+        return out;
+    }
 
     public Result build() throws IOException {
         Map<String, byte[]> files = new LinkedHashMap<>();
@@ -75,8 +93,10 @@ public final class HudPackBuilder {
         pack.addProperty("pack_format", PACK_FORMAT); pack.addProperty("min_format", PACK_FORMAT); pack.addProperty("max_format", PACK_FORMAT);
         meta.add("pack", pack);
         files.put("pack.mcmeta", GSON.toJson(meta).getBytes(StandardCharsets.UTF_8));
-        files.put("assets/minecraft/shaders/core/text.vsh", HudShaders.vertex(layout).getBytes(StandardCharsets.UTF_8));
-        files.put("assets/minecraft/shaders/core/text.fsh", HudShaders.fragment(layout).getBytes(StandardCharsets.UTF_8));
+        boolean cctv = cctvIncludes != null;
+        files.put("assets/minecraft/shaders/core/text.vsh", HudShaders.vertex(layout, cctv).getBytes(StandardCharsets.UTF_8));
+        files.put("assets/minecraft/shaders/core/text.fsh", HudShaders.fragment(layout, cctv).getBytes(StandardCharsets.UTF_8));
+        if (cctv) files.putAll(cctvIncludes);
         for (String skin : SKINS) {
             Map<String, byte[]> art = HudTextures.all(HudTextures.skin(skin));
             JsonArray providers = new JsonArray();

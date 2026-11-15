@@ -4,6 +4,12 @@ main: fi.alavesa.superbvehicles.SuperbVehiclesPlugin
 api-version: '1.21'
 description: Data-driven Blockbench vehicles - wheeled, tracked, boats, helicopters, planes and static emplacements with mounted weapons.
 author: Piia Alavesa
+dependencies:
+  server:
+    CCTV:
+      # CCTV and the shader HUD replace the same vanilla text shader: CCTV loads first so its pack can be merged in
+      load: BEFORE
+      required: false
 permissions:
   superbvehicles.admin:
     description: Every /sbv command, spawning and removing any vehicle.

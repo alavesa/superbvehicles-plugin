@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.7.0 - 2026-11-15
+
+### Fixed
+- **The shader HUD broke every server pack on 26.3 clients.** Its text shader used `gl_VertexID`, which Minecraft 26.3
+  (SPIR-V) rejects. One failing core shader makes the client drop ALL server packs, so CCTV's camera looks / HUD and
+  Lighting's coloured light disappeared with it (SuperbVehicles then re-sent only its own models). Now
+  `gl_VertexIndex`; checked with glslang and on a real 26.3 client together with CCTV and Lighting.
+- **Vehicles stuck at slabs and blocks.** The step height was multiplied by the model scale (0.6 at scale 0.6 was
+  0.36 blocks, lower than a slab), and servers still had 0.1.0 vehicle files with 0.6-0.7. Step heights are now in
+  world blocks and never below `physics.min-step-height` (1.05): every car and tank drives up slabs and full blocks by
+  just driving at them, from any angle and speed (unit sweep of every ground type, plus real Paper blocks).
+- The same-port pack host answered 404 to downloads meant for other plugins on the same port; it now passes them on
+  (CCTV 0.7 and Lighting 0.2 serve their packs on the Minecraft port the same way).
+
+### Added
+- Chase view zoom: the mouse wheel moves the camera closer / further (`camera.zoom-step`, `min-zoom`, `max-zoom`);
+  `/sbv camera zoom <percent>` too. While the chase view is on, the held hotbar slot is pinned to `camera.scroll-slot`
+  (7) so the wheel can be read; number keys 1-5 still pick weapons.
+- With the CCTV plugin installed, the HUD text shader carries CCTV's hooks and include files (`hud.merge-cctv`), so
+  both plugins' shaders work whichever pack ends up on top.
+- `/sbv debug drive <seconds> [throttle]`: every empty vehicle drives straight ahead (console testing).
+
 ## 0.6.0 - 2026-11-15
 
 ### Added

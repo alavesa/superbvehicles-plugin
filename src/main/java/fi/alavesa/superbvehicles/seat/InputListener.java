@@ -30,7 +30,10 @@ public final class InputListener implements Listener {
         Vehicle v = plugin.vehicles().byPlayer(p);
         if (v == null) return;
         Vehicle.SeatSlot s = v.seatOf(p);
+        // chase view: the wheel zooms (the held slot stays pinned), number keys still pick weapons
+        if (plugin.camera().scroll(p, e.getPreviousSlot(), e.getNewSlot())) { e.setCancelled(true); return; }
         if (s != null && !s.def.weapons.isEmpty()) plugin.seats().hotbar(p, e.getNewSlot());
+        if (plugin.camera().active(p)) e.setCancelled(true);      // keep the pinned slot
     }
 
     @EventHandler public void onSwap(PlayerSwapHandItemsEvent e) {

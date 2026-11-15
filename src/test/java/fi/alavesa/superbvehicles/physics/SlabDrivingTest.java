@@ -66,6 +66,13 @@ class SlabDrivingTest {
         assertTrue(car.pose.z > 20);
     }
 
+    @Test void stepHeightIsInWorldBlocksAndNeverBelowTheMinimum() {
+        // wheelchair.yml: scale 0.6, step-height 0.6 - before 0.7 that was 0.36 blocks and every slab stopped it
+        WheeledVehicleController.Params p = WheeledVehicleController.Params.of(WheeledVehicleControllerTest.type("wheelchair"));
+        assertEquals(WheeledVehicleController.Params.minStepHeight, p.stepHeight, 1e-9);
+        assertTrue(p.stepHeight >= 1.0, "climbs full blocks: " + p.stepHeight);
+    }
+
     @Test void stopsAtATwoBlockWall() {
         StepTerrain t = new StepTerrain(BASE).area(-20, 12, 20, 13, 2.0);
         Car car = new Car("sodayo", t, 0.5, 0.5, 0);

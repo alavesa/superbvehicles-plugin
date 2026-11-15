@@ -55,4 +55,17 @@ class HudPackTest {
         // every layout element has a glyph texture
         for (HudLayout.Element e : HudLayout.ELEMENTS) assertTrue(e.glyph().equals("digit") || e.glyph().equals("unit") || HudPackBuilder.CHARS.containsKey(e.glyph()), e.glyph());
     }
+
+    /** 26.3 compiles core shaders to SPIR-V: gl_VertexID does not exist there, and ONE failing shader makes the client
+     *  drop every server pack (models, CCTV, Lighting...). 0.2-0.6 shipped gl_VertexID. */
+    @Test void textShadersUseOnlySpirvBuiltins() {
+        HudLayout l = HudLayout.of(null);
+        for (boolean cctv : new boolean[]{false, true}) {
+            String v = HudShaders.vertex(l, cctv), f = HudShaders.fragment(l, cctv);
+            assertFalse(v.contains("gl_VertexID") || f.contains("gl_VertexID"), "gl_VertexID (use gl_VertexIndex)");
+            assertTrue(v.contains("gl_VertexIndex"));
+            assertEquals(cctv, v.contains("#include <cctv:cctv_text_vertex.glsl>") && v.contains("cctv_screen_pull("));
+            assertEquals(cctv, f.contains("#include <cctv:cctv_text_fragment.glsl>") && f.contains("cctv_text_fragment(color"));
+        }
+    }
 }

@@ -56,7 +56,8 @@ the helicopter along their own view direction (like F5, but with the aircraft ce
 in the way. Other players see a mannequin with the pilot's skin, name and equipment in the cockpit, and the pilot's
 body is hidden (invisible, equipment sent empty to others; the tab list is untouched). `/sbv camera` switches between
 chase and cockpit per player; `camera:` in config.yml sets the default, the distance and which classes / seats get it
-(`vehicles: [helicopter, plane]` adds planes).
+(`vehicles: [helicopter, plane]` adds planes). The mouse wheel zooms the chase view (`/sbv camera zoom <percent>`
+sets it directly); meanwhile the held hotbar slot stays on slot 7 and keys 1-5 still select weapons.
 
 Guided weapons: `wire` / `laser` steer toward the gunner's aim point, `lock` needs a lock (hold the target in the
 lock cone for `lock-time`; the target sees a LOCK warning and may pop flares). The engine starts on the first
@@ -150,7 +151,11 @@ The change is saved into `vehicles/<type>.yml` (the seat's `offset`). A seat who
 flagged in the listing (it sits at the hull centre until you add the locator). `seats.rider-offset` in config.yml
 moves every rider up or down if your client shows them sitting too high or low.
 
-### Slabs, blocks and roads (0.4.0)
+### Slabs, blocks and roads (0.4.0, 0.7.0)
+
+Since 0.7.0 `step-height` is in world blocks (not scaled with the model) and never below `physics.min-step-height`
+(config.yml, default 1.05), so every car and tank climbs slabs and full blocks whatever its vehicle file says.
+
 
 Cars, trucks and tanks climb anything up to their `step-height` (blocks): slabs, paths, carpets, stairs and with the
 default 1.05 also full blocks, so slab roads that rise and fall drive smoothly. The body rests on the highest block
@@ -259,6 +264,12 @@ or fuel arc (green / yellow / red, blinking warning under 15%, dark face and eng
 aircraft, a vertical-speed indicator, an artificial horizon (roll) with a pitch bar and a 4-digit altimeter.
 Gunners and passengers keep the text line. Per player: `/sbv hud shader|text|off`, `/sbv hud units kmh|mph`
 (saved in `data/hud-players.yml`; defaults `hud.mode`, `hud.units`).
+
+**Why a core shader and not `/posteffect`.** Post effects (`/posteffect`, `Player.postEffects()`) run over the 3D
+frame BEFORE the client draws the GUI (26.3 `GameRenderer.render`: post effects, then the GUI), so they cannot see or
+draw HUD elements. The gauges therefore stay in the `core/text` shader. With CCTV installed, that shader carries
+CCTV's hooks too (`hud.merge-cctv`), and since 0.7.0 it uses only SPIR-V built-ins (`gl_VertexIndex`): on 26.3 one
+failing core shader makes the client drop every server pack.
 
 **How it works.** The plugin sends the HUD as action-bar text in its own fonts (`superbvehicles:hud_<skin>`); every
 glyph carries data in its text colour, and modified core text shaders (vanilla 26.3 `text.vsh` / `text.fsh` with an

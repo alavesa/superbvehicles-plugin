@@ -9,7 +9,7 @@ package fi.alavesa.superbvehicles.hud;
  * 26.3 rules followed (verified against the client jar): #include instead of #moj_import, layout(location) on every
  * varying (vanilla uses 0..3, ours is 4), GL_ARB_separate_shader_objects, the OIT fragment structure kept as is, the
  * Globals block (GameTime) is bound for the text pipelines (TEXT_SNIPPET is built on GLOBALS_SNIPPET).
- * Glyph quads are emitted top-left, bottom-left, bottom-right, top-right (BakedSheetGlyph.render), so gl_VertexID % 4
+ * Glyph quads are emitted top-left, bottom-left, bottom-right, top-right (BakedSheetGlyph.render), so gl_VertexIndex % 4
  * gives the corner.
  */
 public final class HudShaders {
@@ -56,7 +56,7 @@ public final class HudShaders {
                 if (c.r != 253 || (c.g & 224) != 160) return;          // not HUD data: vanilla text stays untouched
                 int id = c.g & 31;
                 float v = float(c.b) / 255.0;
-                int corner = gl_VertexID % 4;                           // TL, BL, BR, TR
+                int corner = gl_VertexIndex % 4;                        // TL, BL, BR, TR
                 vec2 k = vec2(corner >= 2 ? 1.0 : 0.0, (corner == 1 || corner == 2) ? 1.0 : 0.0);
                 vec4 rect = SBV_RECT[id];
                 vec2 pivot = SBV_PIVOT[id];
@@ -205,5 +205,34 @@ public final class HudShaders {
                 #endif
             }
             """;
+    }
+
+    // ------------------------------------------------------------------ CCTV merge
+
+    /**
+     * CCTV's pack replaces the same two vanilla files (core/text.vsh/fsh) for its camera HUD and monitor screens.
+     * Only the topmost pack's copy runs, so with both plugins one of them lost its shader. With CCTV installed the HUD
+     * pack ships text shaders that carry CCTV's hooks too (and CCTV's include files), so both work whatever the order.
+     */
+    public static String vertex(HudLayout layout, boolean cctv) {
+        String s = vertex(layout);
+        if (!cctv) return s;
+        s = insertAfter(s, "#include <minecraft:projection.glsl>\n", "// ===== CCTV BEGIN =====\n#include <cctv:cctv_text_vertex.glsl>\n// ===== CCTV END =====\n");
+        return insertAfter(s, "gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);\n",
+            "    // ===== CCTV BEGIN =====\n    gl_Position = ProjMat * cctv_screen_pull(ModelViewMat * vec4(Position + cctv_gui_offset(Position, Color), 1.0));\n    // ===== CCTV END =====\n");
+    }
+
+    public static String fragment(HudLayout layout, boolean cctv) {
+        String s = fragment(layout);
+        if (!cctv) return s;
+        s = insertAfter(s, "#include <minecraft:oit.glsl>\n", "// ===== CCTV BEGIN =====\n#include <cctv:cctv_text_fragment.glsl>\n// ===== CCTV END =====\n");
+        return insertAfter(s, "vec4 color = texColor * vertexColor * ColorModulator;\n",
+            "    // ===== CCTV BEGIN =====\n    color = cctv_text_fragment(color, texColor, vertexColor, Sampler0, texCoord0, ColorModulator);\n    // ===== CCTV END =====\n");
+    }
+
+    private static String insertAfter(String s, String anchor, String add) {
+        int i = s.indexOf(anchor);
+        if (i < 0) throw new IllegalStateException("text shader anchor missing: " + anchor.trim());
+        return s.substring(0, i + anchor.length()) + add + s.substring(i + anchor.length());
     }
 }

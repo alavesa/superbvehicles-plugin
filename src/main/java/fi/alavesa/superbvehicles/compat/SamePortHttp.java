@@ -26,7 +26,8 @@ import java.util.function.Function;
  * a Minecraft handshake starts with a packet length, an HTTP download with {@code GET } or {@code HEAD }. Downloads
  * get the zip streamed back and never reach the game's handlers; everything else passes through untouched. Found by
  * reflection on {@code MinecraftServer.getConnection().channels} (field matched by its generic type), so it survives
- * mapping changes. Does not work behind a Velocity/Bungee proxy (they forward only the game protocol).
+ * mapping changes. Several plugins can do this on one port: a request whose path is not under /&lt;pathMarker&gt;/ is
+ * passed on unchanged to the next handler (the same class in CCTV and Lighting does the same). Does not work behind a Velocity/Bungee proxy (they forward only the game protocol).
  */
 public final class SamePortHttp {
     private static final String PARENT = "superbvehicles_http_accept", CHILD = "superbvehicles_http";
@@ -108,15 +109,22 @@ public final class SamePortHttp {
             String text = head.toString(StandardCharsets.US_ASCII);
             int end = text.indexOf("\r\n\r\n");
             if (end < 0) { if (head.readableBytes() > 16384) ctx.close(); return; }
-            answered = true;
             String line = text.substring(0, text.indexOf("\r\n"));
             String[] parts = line.split(" ");
             String method = parts.length > 0 ? parts[0] : "", path = parts.length > 1 ? parts[1] : "";
+            if (!path.contains("/" + pathMarker + "/")) {
+                // not ours: another plugin's same-port handler (CCTV, Lighting...) may serve it - hand the bytes on
+                ByteBuf h = head; head = null;
+                ctx.pipeline().remove(this);
+                ctx.fireChannelRead(h);
+                return;
+            }
+            answered = true;
             head.release(); head = null;
             ChannelPipeline p = ctx.pipeline();
             for (String name : new ArrayList<>(p.names())) if (!name.equals(CHILD) && p.get(name) != null) try { p.remove(name); } catch (Throwable ignored) { }
-            File f = path.contains("/" + pathMarker) && path.endsWith(".zip") ? files.apply(path) : null;
-            if (!path.contains("/" + pathMarker) || !path.endsWith(".zip") || f == null || !f.isFile()) { reply(ctx, "404 Not Found", 0, null, method.equals("HEAD")); return; }
+            File f = path.endsWith(".zip") ? files.apply(path) : null;
+            if (!path.endsWith(".zip") || f == null || !f.isFile()) { reply(ctx, "404 Not Found", 0, null, method.equals("HEAD")); return; }
             reply(ctx, "200 OK", f.length(), f, method.equals("HEAD"));
         }
 
