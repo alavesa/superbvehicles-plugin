@@ -33,6 +33,8 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
     private fi.alavesa.superbvehicles.damage.DamageModel damage;
     private fi.alavesa.superbvehicles.core.Persistence persistence;
     private fi.alavesa.superbvehicles.core.Items items;
+    private fi.alavesa.superbvehicles.net.VehicleNetworkAndSleepManager network;
+    private fi.alavesa.superbvehicles.seat.PassengerAndSafeDismountController passengers;
 
     public static SuperbVehiclesPlugin get() { return instance; }
 
@@ -58,6 +60,8 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         damage = new fi.alavesa.superbvehicles.damage.DamageModel(this);
         projectiles = new fi.alavesa.superbvehicles.weapon.ProjectileManager(this);
         vehicles = new fi.alavesa.superbvehicles.core.VehicleManager(this);
+        network = new fi.alavesa.superbvehicles.net.VehicleNetworkAndSleepManager(this);
+        passengers = new fi.alavesa.superbvehicles.seat.PassengerAndSafeDismountController(this);
         seats = new fi.alavesa.superbvehicles.seat.SeatManager(this);
         hud = new fi.alavesa.superbvehicles.hud.HudManager(this);
         camera = new fi.alavesa.superbvehicles.seat.ChaseCamera(this);
@@ -68,6 +72,9 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new fi.alavesa.superbvehicles.seat.InputListener(this), this);
         getServer().getPluginManager().registerEvents(new fi.alavesa.superbvehicles.damage.DamageListener(this), this);
         getServer().getPluginManager().registerEvents(vehicles, this);
+        getServer().getPluginManager().registerEvents(network, this);
+        network.start();
+        getLogger().info(network.bundling() ? "Vehicle packets are sent as one bundle per tick." : "Vehicle packets are sent unbundled.");
         new fi.alavesa.superbvehicles.command.SbvCommand(this).register();
         fi.alavesa.superbvehicles.api.SuperbVehiclesAPI.init(this);
         vehicles.start();
@@ -85,6 +92,8 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
         try { if (persistence != null) persistence.save(); } catch (Exception e) { getLogger().warning("save failed: " + e); }
         if (camera != null) camera.shutdown();
         if (vehicles != null) vehicles.shutdown();
+        if (network != null) network.shutdown();
+        if (passengers != null) passengers.clear();
         if (projectiles != null) projectiles.clear();
         if (host != null) host.stop();
         instance = null;
@@ -183,6 +192,8 @@ public final class SuperbVehiclesPlugin extends JavaPlugin {
     public fi.alavesa.superbvehicles.damage.DamageModel damage() { return damage; }
     public fi.alavesa.superbvehicles.core.Persistence persistence() { return persistence; }
     public fi.alavesa.superbvehicles.core.Items items() { return items; }
+    public fi.alavesa.superbvehicles.net.VehicleNetworkAndSleepManager network() { return network; }
+    public fi.alavesa.superbvehicles.seat.PassengerAndSafeDismountController passengers() { return passengers; }
     public double cfg(String key, double def) { return getConfig().getDouble(key, def); }
     public boolean flag(String key, boolean def) { return getConfig().getBoolean(key, def); }
 }

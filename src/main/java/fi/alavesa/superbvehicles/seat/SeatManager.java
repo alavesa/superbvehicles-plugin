@@ -152,6 +152,7 @@ public final class SeatManager implements Listener {
         if (ev.isCancelled()) return false;
         if (current != null) forced(() -> current.stand.removePassenger(p));
         else if (p.getVehicle() != null) p.leaveVehicle();
+        plugin.network().wake(v);
         v.tickSeats();
         if (!seat.stand.addPassenger(p)) return false;
         seat.enteredTick = tick;
@@ -165,6 +166,7 @@ public final class SeatManager implements Listener {
         plugin.messages().send(p, current != null ? "seat-switched" : "entered", Messages.str("seat", seat.def.name), Messages.str("name", v.displayName()));
         if (seat.def.role == VehicleType.SeatRole.DRIVER && "helicopter-simple".equals(controlClass(v))) plugin.messages().send(p, "heli-controls");
         if (plugin.camera().wants(p, v, seat)) plugin.messages().send(p, "camera-hint");
+        plugin.passengers().promptExit(p);
         return true;
     }
 
@@ -248,6 +250,7 @@ public final class SeatManager implements Listener {
         Vehicle v = plugin.vehicles().byEntity(clicked);
         if (v == null) return;
         e.setCancelled(true);
+        plugin.network().wake(v);
         Player p = e.getPlayer();
         if (plugin.items().useOn(p, v)) return;              // fuel can / ammo crate / repair kit
         Vehicle mine = plugin.vehicles().byPlayer(p);
@@ -266,6 +269,8 @@ public final class SeatManager implements Listener {
         if (v == null) return;
         if (forced) return;
         if (!mayLeave(p, v)) { e.setCancelled(true); return; }
+        // on the ground the rider is put on a checked exit (door, rear, roof), never on the vanilla dismount spot
+        if (plugin.passengers().handles(v)) { e.setCancelled(true); plugin.passengers().requestExit(p, v); return; }
         Vehicle.SeatSlot s = v.seatOfEntity(e.getDismounted());
         plugin.getServer().getPluginManager().callEvent(new VehicleExitEvent(v, p, s == null ? -1 : s.index, false));
         plugin.hud().forgetPlayer(p);
@@ -286,6 +291,8 @@ public final class SeatManager implements Listener {
         if (v != null) exit(p, true);
         keys.remove(p.getUniqueId());
         inputs.forget(p.getUniqueId());
+        plugin.passengers().forget(p.getUniqueId());
+        plugin.vehicles().forgetPlayer(p.getUniqueId());
         plugin.hud().quit(p);
     }
 }

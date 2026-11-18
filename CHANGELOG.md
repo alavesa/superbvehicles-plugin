@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.8.0 - 2026-11-18
+
+Not verified on a real client yet: how the new driving looks and feels, the exit positions, the prompts.
+
+### Added
+- **Rigid-body ground model** for cars, trucks and tanks (`physics.ground-model: rigid`, the default; `classic` brings
+  the 0.7 controller back, also per vehicle with `physics.ground-model`). Wheel force from a torque curve, limited by
+  the grip of the block under the wheels; air drag, rolling resistance; gravity along the slope, so vehicles gain
+  speed downhill and lose it uphill; spring-and-damper suspension on four or six contact points; the body's pitch and
+  roll come from the plane through those points.
+- **Step classes from real block shapes.** Up to `free-step` (0.55: slabs, stairs, snow, trapdoors) the wheels roll
+  up without losing speed. A full block (up to `step-height`) is climbed only with enough speed
+  (`full-block-climb-threshold`) or drive force (`full-block-climb-traction`), and costs speed. Anything taller, or a
+  ledge under a ceiling too low for the lifted body, is a hard hit with a rebound and a spin.
+- **Surfaces.** Ice, sand, gravel, mud, snow and dirt change grip and rolling resistance (`physics.surfaces`).
+- **Sleep.** Empty vehicles at rest are not ticked at all. They wake when entered, clicked, damaged, rammed, or when
+  the ground under them changes. `/sbv debug perf` shows awake / asleep and why each awake vehicle is awake.
+- **One bundle per tick.** All movement and part updates of vehicle entities reach a client as one bundle packet.
+  Part interpolation is 2 ticks by default (`network.interpolation-ticks`, `network.teleport-ticks`).
+- **Safe exit.** Getting out puts the rider on the first safe place: own-side door, other door, rear, roof, above.
+  Safe = room for a standing player, floor or water within 3 blocks, no lava / fire / magma / cactus / berry bush
+  (`seats.dismount`).
+- Action-bar prompts: "Right-click to enter" when looking at a vehicle, "Sneak to exit" when seated (`seats.prompts`).
+
+### Changed
+- Gravity for ground vehicles on the rigid model is 9.81 blocks/s^2 (vehicle YAML `physics.gravity`), not 32.
+- Without `drag-area` in a vehicle file, drag is solved so that top speed is still `max-speed`.
+- `render.interpolation-ticks` / `render.teleport-ticks` are replaced by the `network.` keys.
+- A vehicle with a looping idle animation holds its last frame while asleep (`physics.sleep.keep-animations: true`
+  keeps it awake instead).
+
+### Fixed
+- `/sbv debug physics` subscriptions were kept after the player left.
+
 ## 0.7.0 - 2026-11-15
 
 ### Fixed

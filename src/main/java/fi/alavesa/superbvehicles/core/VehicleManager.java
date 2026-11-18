@@ -5,6 +5,7 @@ import fi.alavesa.superbvehicles.api.SuperbVehiclesAPI;
 import fi.alavesa.superbvehicles.api.VehicleSpawnEvent;
 import fi.alavesa.superbvehicles.physics.BlockCollider;
 import fi.alavesa.superbvehicles.physics.Obb;
+import fi.alavesa.superbvehicles.physics.VoxelCollisionAndStepSolver;
 import fi.alavesa.superbvehicles.render.Pose;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
@@ -39,6 +40,7 @@ public final class VehicleManager implements Listener {
     private final Map<UUID, Vehicle> vehicles = new LinkedHashMap<>();
     private final Map<UUID, Vehicle> byEntity = new HashMap<>();
     private final Map<World, BlockCollider> colliders = new HashMap<>();
+    private final Map<World, VoxelCollisionAndStepSolver.WorldVoxels> voxels = new HashMap<>();
     private io.papermc.paper.threadedregions.scheduler.ScheduledTask task;
     private int tick;
     public long lastTickNanos, maxTickNanos;
@@ -58,6 +60,28 @@ public final class VehicleManager implements Listener {
 
     public BlockCollider collider(World w) { return colliders.computeIfAbsent(w, BlockCollider::new); }
 
+    /** Block shapes of a world for the rigid-body model (one per world, dropped when the world unloads). */
+    public VoxelCollisionAndStepSolver.WorldVoxels voxels(World w) {
+        VoxelCollisionAndStepSolver.WorldVoxels x = voxels.get(w);
+        if (x == null) { x = new VoxelCollisionAndStepSolver.WorldVoxels(w); configureVoxels(x); voxels.put(w, x); }
+        return x;
+    }
+
+    /** Config: seats.dismount.hazards and physics.surfaces.<MATERIAL>: {grip, rolling}. */
+    private void configureVoxels(VoxelCollisionAndStepSolver.WorldVoxels x) {
+        List<String> hz = plugin.getConfig().getStringList("seats.dismount.hazards");
+        if (!hz.isEmpty()) x.hazards(hz);
+        org.bukkit.configuration.ConfigurationSection sec = plugin.getConfig().getConfigurationSection("physics.surfaces");
+        if (sec != null) for (String k : sec.getKeys(false)) {
+            org.bukkit.Material m = org.bukkit.Material.matchMaterial(k);
+            if (m != null) x.surface(m, (float) sec.getDouble(k + ".grip", 1.0), (float) sec.getDouble(k + ".rolling", 1.0));
+            else plugin.getLogger().warning("physics.surfaces: unknown block " + k);
+        }
+    }
+
+    /** After /sbv reload: surfaces and hazards are read again. */
+    public void voxelsChanged() { voxels.clear(); }
+
     // ------------------------------------------------------------------ spawn / remove
 
     public Vehicle spawn(VehicleType type, Location at, UUID owner) { return spawn(type, at, owner, UUID.randomUUID(), false); }
@@ -67,6 +91,7 @@ public final class VehicleManager implements Listener {
         Vehicle v = new Vehicle(plugin, id, type, at.getWorld(), pose);
         v.owner = owner;
         vehicles.put(v.id, v);
+        plugin.network().membershipChanged();
         if (at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) { v.spawnEntities(); index(v); } else v.dormant = true;
         Bukkit.getPluginManager().callEvent(new VehicleSpawnEvent(v, restored));
         return v;
@@ -75,13 +100,14 @@ public final class VehicleManager implements Listener {
     /** Register a record restored from disk (entities appear when its chunk loads). */
     public void adopt(Vehicle v) {
         vehicles.put(v.id, v);
+        plugin.network().membershipChanged();
         Location at = v.location();
         if (at.getWorld() != null && at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) { v.spawnEntities(); index(v); v.dormant = false; } else v.dormant = true;
         Bukkit.getPluginManager().callEvent(new VehicleSpawnEvent(v, true));
     }
 
-    private void index(Vehicle v) { for (Entity e : v.entities()) byEntity.put(e.getUniqueId(), v); }
-    private void unindex(Vehicle v) { byEntity.values().removeIf(x -> x == v); }
+    private void index(Vehicle v) { for (Entity e : v.entities()) byEntity.put(e.getUniqueId(), v); plugin.network().membershipChanged(); plugin.network().wake(v); }
+    private void unindex(Vehicle v) { byEntity.values().removeIf(x -> x == v); plugin.network().membershipChanged(); }
 
     /** Remove a vehicle for good (riders out, entities gone, record dropped). */
     public void remove(Vehicle v, boolean effects) {
@@ -92,6 +118,7 @@ public final class VehicleManager implements Listener {
         v.despawnEntities();
         unindex(v);
         vehicles.remove(v.id);
+        plugin.network().membershipChanged();
         plugin.hud().forget(v);
     }
 
@@ -153,19 +180,43 @@ public final class VehicleManager implements Listener {
 
     // ------------------------------------------------------------------ tick
 
+    private final java.util.function.Consumer<Vehicle> ticker = this::tickOne;
+
+    private void tickOne(Vehicle v) {
+        try {
+            if (!v.spawned()) { v.despawnEntities(); v.spawnEntities(); index(v); }
+            v.tick(collider(v.world), tick);
+        } catch (Exception e) {
+            plugin.getLogger().warning("Vehicle tick failed for " + v + ": " + e);
+            if (plugin.flag("debug.log-physics", false)) e.printStackTrace();
+        }
+    }
+
+    /** Its entities went away with their chunk and nobody rides it: keep the record, show it again when the chunk loads. */
+    public void parkIfUnloaded(Vehicle v) {
+        if (v.removed || v.dormant || v.occupied()) return;
+        if (v.world.isChunkLoaded(((int) Math.floor(v.pose.x)) >> 4, ((int) Math.floor(v.pose.z)) >> 4)) return;
+        v.despawnEntities(); unindex(v); v.dormant = true;
+    }
+
+    /** The closest live vehicle within range, or null. */
+    public Vehicle nearest(World w, double x, double y, double z, double range) {
+        Vehicle best = null; double bestD = range * range;
+        for (Vehicle v : vehicles.values()) {
+            if (v.dormant || v.world != w) continue;
+            double dx = v.pose.x - x, dy = v.pose.y - y, dz = v.pose.z - z, d = dx * dx + dy * dy + dz * dz;
+            if (d <= bestD) { bestD = d; best = v; }
+        }
+        return best;
+    }
+
+    public void forgetPlayer(UUID player) { physicsDebuggers.remove(player); }
+
     private void tickAll() {
         long t0 = System.nanoTime();
         tick++;
-        for (Vehicle v : new ArrayList<>(vehicles.values())) {
-            if (v.removed || v.dormant) continue;
-            try {
-                if (!v.spawned()) { v.despawnEntities(); v.spawnEntities(); index(v); }
-                v.tick(collider(v.world), tick);
-            } catch (Exception e) {
-                plugin.getLogger().warning("Vehicle tick failed for " + v + ": " + e);
-                if (plugin.flag("debug.log-physics", false)) e.printStackTrace();
-            }
-        }
+        plugin.network().tick(tick, ticker);       // only vehicles that are awake
+        try { plugin.passengers().tickPrompts(tick); } catch (Exception e) { plugin.getLogger().warning("prompts: " + e); }
         try { plugin.projectiles().tick(); } catch (Exception e) { plugin.getLogger().warning("projectiles: " + e); }
         try { plugin.seats().tick(tick); } catch (Exception e) { plugin.getLogger().warning("seats: " + e); }
         try { plugin.hud().tick(tick); } catch (Exception e) { plugin.getLogger().warning("hud: " + e); }
@@ -176,7 +227,7 @@ public final class VehicleManager implements Listener {
 
     /** The pack was rebuilt: re-read hitboxes and rebuild every body. */
     public void rigsChanged() {
-        for (Vehicle v : vehicles.values()) if (v.spawned()) { v.bindRig(); v.renderer.rebuild(); unindex(v); index(v); }
+        for (Vehicle v : vehicles.values()) if (v.spawned()) { plugin.network().wake(v); v.bindRig(); v.renderer.rebuild(); unindex(v); index(v); }
     }
 
     /** Entities with our tag whose vehicle does not exist (left behind by a crash or a reload): remove them. */
@@ -214,6 +265,7 @@ public final class VehicleManager implements Listener {
     @EventHandler public void onWorldUnload(WorldUnloadEvent e) {
         for (Vehicle v : new ArrayList<>(vehicles.values())) if (v.world == e.getWorld()) { v.despawnEntities(); unindex(v); v.dormant = true; }
         colliders.remove(e.getWorld());
+        voxels.remove(e.getWorld());
     }
 
     public int tickCount() { return tick; }

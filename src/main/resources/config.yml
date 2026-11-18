@@ -20,12 +20,26 @@ pack:
 
 render:
   view-range: 2.0                 # ItemDisplay view range multiplier (1.0 = 64 blocks)
-  interpolation-ticks: 1          # transformation interpolation (1 = smooth per-tick updates)
-  teleport-ticks: 1
+  # (interpolation moved to network: below)
   passenger-offset: 0.0           # vertical nudge of all parts (blocks) if the root attachment differs on your client
   shadow: false
 
+network:
+  bundle: true                    # everything about a vehicle in one tick goes out as ONE bundle packet (no part a frame behind)
+  interpolation-ticks: 2          # 1-5: the client slides every part to its new transformation over this many ticks
+  teleport-ticks: 2               # 1-5: same for positions
+
 physics:
+  ground-model: rigid             # rigid = rigid-body model (suspension, slopes, step classes); classic = the 0.7 controller
+  sleep:
+    enabled: true                 # empty vehicles at rest are not simulated at all until something touches them
+    rest-ticks: 20                # ticks at rest before sleeping
+    keep-animations: false        # true: a vehicle with a looping idle animation never sleeps (false: it holds its last frame)
+  # Tyre grip (1 = dry stone) and rolling-resistance multiplier per block; the defaults come from the block's own
+  # slipperiness (ice 0.05) and a built-in list for sand, gravel, mud, snow and dirt. Example:
+  # surfaces:
+  #   BLACK_CONCRETE: { grip: 1.1, rolling: 0.8 }
+  #   PACKED_ICE: { grip: 0.08, rolling: 1.0 }
   # UNITS: blocks (= metres), blocks/second, blocks/second^2, degrees, degrees/second, kilograms, newtons.
   # Vehicle YAMLs use the same units; the plugin converts to per-tick values in exactly one place.
   min-step-height: 1.05           # blocks: every car / tank climbs at least this (slabs, paths, full blocks), whatever its file says
@@ -56,6 +70,10 @@ seats:
   bail-out-ticks: 8               # aircraft: double-tap sneak within this many ticks to bail out
   bail-hold-seconds: 1.0          # simple-model helicopter pilots: hold jump + sneak this long in the air to bail out
   eject-velocity: 1.2
+  prompts: true                   # action bar: "right-click to enter" when looking at a vehicle, "sneak to exit" when seated
+  dismount:
+    safe: true                    # riders are put on a checked exit: own-side door, other door, rear, roof, above
+    hazards: [LAVA, FIRE, SOUL_FIRE, MAGMA_BLOCK, CACTUS, SWEET_BERRY_BUSH]
   rider-offset: 0.6               # blocks the seat marker sits below the rider's seat point (vanilla attachment)
 
 # Third-person chase view (/sbv camera chase|cockpit per player). The rider's seat moves behind the vehicle and

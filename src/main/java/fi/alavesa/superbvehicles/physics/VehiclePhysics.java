@@ -26,6 +26,10 @@ public abstract class VehiclePhysics {
     public abstract String animationState();
     /** One line for /sbv debug physics. */
     public abstract String debugLine();
+    /** Resting on the ground (or afloat) and not moving: the sleep manager may take this vehicle out of the tick loop. */
+    public boolean atRest() { return (s.onGround || s.inWater) && s.vel.lengthSquared() < 1e-6; }
+    /** Asked now and then while asleep: has the ground under the vehicle changed? */
+    public boolean restDisturbed() { return false; }
     /** Called when the rig changed (hitbox / wheel positions re-read). */
     public void rigBound() { }
 
@@ -219,6 +223,7 @@ public abstract class VehiclePhysics {
             Vector3d dir = new Vector3d(oh.center).sub(c); dir.y = 0;
             if (dir.lengthSquared() < 1e-9) dir.set(v.pose.forwardFlat()); else dir.normalize();
             double share = om / (mass + om);                          // momentum: the lighter one is shoved more
+            plugin.network().wake(o);
             o.phys.vel.add(new Vector3d(dir).mul(closing * (1 - share)));
             s.vel.sub(new Vector3d(dir).mul(closing * share));
             v.world.playSound(v.location(), "minecraft:entity.generic.explode", 0.6f, 1.6f);

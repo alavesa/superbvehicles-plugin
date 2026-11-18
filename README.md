@@ -167,6 +167,31 @@ Boats run up slabs and shores too (`step-height`, default 0.6). Out of the water
 only back toward the water it came from, so you can reverse or turn back. After that the boat is stranded until water
 is under it again.
 
+### Rigid-body ground model (0.8.0)
+
+Cars, trucks and tanks run on `physics.ground-model: rigid` (config.yml; `classic` = the 0.7 controller, also per
+vehicle). Every old physics key still works. New vehicle keys, all optional:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `engine-torque` | - | N m at the wheels; replaces `engine-force` (force = torque / `wheel-radius`) |
+| `torque-curve` | `[1, 1, 0.95, 0.85, 0.7, 0.5, 0.3]` | share of the peak, evenly spaced from 0 to `max-speed` |
+| `drag-area` | solved | Cd x A in m^2; unset = chosen so top speed is `max-speed` |
+| `tire-friction` | 1.0 (tracks 1.2) | grip on a surface of grip 1 |
+| `gravity` | 9.81 | blocks/s^2 |
+| `com-height`, `com-forward`, `com-right` | 0.6, 0, 0 | centre of mass: lean under braking / cornering, spin in a crash |
+| `suspension-frequency`, `suspension-damping` | 2.2 Hz, 0.7 | spring stiffness and damping ratio |
+| `suspension-travel`, `suspension-droop` | 0.25, 0.3 | blocks up to the bump stop / down to full extension |
+| `free-step` | 0.55 | rolled over freely |
+| `step-height` | 1.05 | highest ledge that can be climbed at all |
+| `full-block-climb-threshold` | 0.5 | kinetic energy needed for a ledge above `free-step`, as a share of m g h |
+| `full-block-climb-traction` | 0.3 (tracks 0.2) | or drive force, as a share of the weight |
+| `climb-loss` | 0.25 | extra speed cost of such a climb, as a share of m g h |
+| `bumper-restitution`, `crash-restitution` | 0.3, 0.1 | bounce at parking speed / in a crash |
+| `half-track`, `half-base`, `six-contacts` | from the wheel bones | contact points |
+
+`/sbv debug physics` prints forces, wheels on the ground, grip, pitch / roll and the last obstacle every tick.
+
 ### Skins
 
 ```yaml

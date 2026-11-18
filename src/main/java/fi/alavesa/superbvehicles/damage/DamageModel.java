@@ -37,6 +37,7 @@ public final class DamageModel {
     /** Lower health by `amount` (before armour). Returns what was taken. */
     public double apply(Vehicle v, double amount, DamageType type, Entity source, Vector3d hitPoint, Vector3d hitDir, double penetration) {
         if (v == null || v.removed || v.wreck || amount <= 0 || v.type.invulnerable || !plugin.flag("damage.enabled", true)) return 0;
+        plugin.network().wake(v);
         String zone = type.armourApplies() ? zone(v, hitPoint, hitDir) : "none";
         double dmg = amount;
         double armor = type.armourApplies() ? v.type.armor(zone) : 0;

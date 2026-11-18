@@ -27,6 +27,10 @@ public final class AnimationPlayer {
 
     public void bind(BbModel model) { if (this.model != model) { this.model = model; layers.clear(); state = null; stateName = ""; } }
     public String stateName() { return stateName; }
+    /** No clip is playing: the bones stay where they are. */
+    public boolean idle() { return state == null && layers.isEmpty(); }
+    /** No one-shot clip or crossfade is running (a looping state clip may be). */
+    public boolean settled() { return layers.isEmpty(); }
     public void setFadeTicks(double t) { fadeTicks = Math.max(0, t); }
 
     /** Switch the looping state clip (null = none). `speed` 1 = Blockbench speed. */

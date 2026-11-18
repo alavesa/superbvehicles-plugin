@@ -86,13 +86,18 @@ public final class Vehicle {
     /** Last server tick this vehicle was in the air (simple helicopters: a sneak held since then does not dismount). */
     public int lastAirborneTick = Integer.MIN_VALUE / 2;
     private int autopilotTicks; private double autopilotThrottle;
-    public void autopilot(int ticks, double throttle) { autopilotTicks = ticks; autopilotThrottle = throttle; }
+    public void autopilot(int ticks, double throttle) { autopilotTicks = ticks; autopilotThrottle = throttle; asleep = false; restTicks = 0; }
+    public boolean autopiloting() { return autopilotTicks > 0; }
     public String lastState = "";
     public boolean debugHitbox;
+    /** Sleep state, kept by the VehicleNetworkAndSleepManager: asleep = not ticked at all. */
+    public boolean asleep;
+    public int restTicks, sleepSlot;
 
     public Vehicle(SuperbVehiclesPlugin plugin, UUID id, VehicleType type, World world, Pose pose) {
         this.plugin = plugin; this.id = id; this.type = type; this.world = world; this.pose = pose;
         pose.modelYaw = type.modelYaw;
+        sleepSlot = (id.hashCode() & 0x7fffffff) % 40;
         health = type.health; fuel = type.fuelCapacity * type.initialFuel;
         seats = new SeatSlot[type.seats.size()];
         for (int i = 0; i < seats.length; i++) seats[i] = new SeatSlot(i, type.seats.get(i));
@@ -151,6 +156,8 @@ public final class Vehicle {
     public double maxHealth() { return type.health; }
     public Location location() { return pose.location(world); }
     public Vector3d position() { return pose.position(); }
+    /** Blocks from the origin to the farthest corner of the hull (plus a little). */
+    public double reach() { return Math.sqrt(hitboxHalfPx[0] * hitboxHalfPx[0] + hitboxHalfPx[1] * hitboxHalfPx[1] * 4 + hitboxHalfPx[2] * hitboxHalfPx[2]) / 16 * type.scale + 1; }
 
     /** The hull OBB in the world. */
     public Obb hull() { return hullAt(pose); }
@@ -275,15 +282,9 @@ public final class Vehicle {
         if (!spawned()) return;
         if (rigChanged()) { bindRig(); renderer.rebuild(); }
         // controls from the driver
-        Player driver = driver();
-        controls.present = driver != null && !wreck;
-        if (driver != null) {
-            controls.held(plugin.seats().inputOf(driver));
-            controls.lookYaw = driver.getLocation().getYaw(); controls.lookPitch = driver.getLocation().getPitch();
-            plugin.seats().drainEdges(driver, controls);
-        } else {
-            controls.held(null);
-            if (autopilotTicks > 0) {      // /sbv debug drive: console test drive without a client
+        plugin.passengers().poll(this, controls);
+        {
+            if (autopilotTicks > 0 && driver() == null) {      // /sbv debug drive: console test drive without a client
                 controls.present = !wreck;
                 controls.forward = autopilotThrottle > 0; controls.backward = autopilotThrottle < 0;
                 controls.lookYaw = (float) pose.yaw; controls.lookPitch = 0;
@@ -379,30 +380,7 @@ public final class Vehicle {
     }
 
     /** Teleport seat stands and click boxes to their current world positions. */
-    public void tickSeats() {
-        double riderOffset = plugin.cfg("seats.rider-offset", 0.6);
-        for (SeatSlot s : seats) {
-            if (s.stand == null || !s.stand.isValid()) continue;
-            Vector3d w = seatWorld(s);
-            w.y += phys.visualYOffset;          // riders follow the eased body, not the physics step
-            Location seatLoc = new Location(world, w.x, w.y - riderOffset, w.z, (float) (pose.yaw + s.def.yawOffset), 0f);
-            Location standLoc = plugin.camera().place(this, s, seatLoc);   // chase view: the stand goes behind the vehicle
-            if (s.stand.getPassengers().isEmpty()) { if (s.stand.getLocation().distanceSquared(standLoc) > 1e-6) s.stand.teleport(standLoc); }
-            else s.stand.teleport(standLoc, TeleportFlag.EntityState.RETAIN_PASSENGERS);
-            if (s.click != null && s.click.isValid()) {
-                Location cl = new Location(world, w.x, w.y - s.def.height / 2.0 + 0.1, w.z);
-                if (s.click.getLocation().distanceSquared(cl) > 1e-6) s.click.teleport(cl);
-            }
-        }
-        if (hull != null && hull.isValid()) {
-            Obb o = hull();
-            float w = (float) Math.min(16, Math.max(o.half.x, o.half.z) * 2), h = (float) Math.min(16, o.half.y * 2);
-            if (Math.abs(hull.getInteractionWidth() - w) > 1e-3) hull.setInteractionWidth(w);
-            if (Math.abs(hull.getInteractionHeight() - h) > 1e-3) hull.setInteractionHeight(h);
-            Location hl = new Location(world, o.center.x, o.center.y - o.half.y, o.center.z);
-            if (hull.getLocation().distanceSquared(hl) > 1e-6) hull.teleport(hl);
-        }
-    }
+    public void tickSeats() { plugin.passengers().syncSeats(this); }
 
     private void sounds() {
         int interval = (int) plugin.cfg("sounds.engine-interval-ticks", 6);

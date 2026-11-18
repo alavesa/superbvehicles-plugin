@@ -61,7 +61,7 @@ public final class VehicleRenderer {
         if (rig == null || v.root == null || !v.root.isValid()) return;
         Location at = v.root.getLocation();
         float viewRange = (float) v.plugin.cfg("render.view-range", 2.0);
-        int interp = (int) v.plugin.cfg("render.interpolation-ticks", 1), tele = (int) v.plugin.cfg("render.teleport-ticks", 1);
+        int interp = v.plugin.network().interpolationTicks(), tele = v.plugin.network().teleportTicks();
         boolean shadow = v.plugin.flag("render.shadow", false);
         for (Rig.Part part : rig.parts) {
             String key = part.itemModel.getOrDefault(skin, part.itemModel.get("default"));

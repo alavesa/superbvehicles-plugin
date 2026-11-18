@@ -376,6 +376,7 @@ public final class SbvCommand {
     private int reload(CommandContext<CommandSourceStack> c) {
         plugin.reloadConfig();
         plugin.applyPhysicsDefaults();
+        plugin.vehicles().voxelsChanged();
         plugin.messages().load();
         plugin.types().load(new File(plugin.getDataFolder(), "vehicles"));
         plugin.selfCheck();
@@ -440,6 +441,9 @@ public final class SbvCommand {
         switch (what) {
             case "perf" -> {
                 var vm = plugin.vehicles();
+                s.sendMessage(Component.text(String.format(Locale.ROOT, "%d awake, %d asleep; packet bundling %s", plugin.network().activeCount(), plugin.network().sleepingCount(), plugin.network().bundling() ? "on" : "off"), NamedTextColor.GRAY));
+                int shown = 0;
+                for (Vehicle x : vm.all()) { if (x.asleep || x.dormant || shown >= 8) continue; shown++; s.sendMessage(Component.text(" awake: " + x + " - " + plugin.network().awakeReason(x) + " | " + x.physics().debugLine(), NamedTextColor.DARK_GRAY)); }
                 s.sendMessage(Component.text(String.format(Locale.ROOT, "%d vehicle(s), %d projectile(s); last tick %.3f ms, peak %.3f ms (%.3f ms per vehicle)", vm.all().size(), plugin.projectiles().all().size(), vm.lastTickNanos / 1e6, vm.maxTickNanos / 1e6, vm.all().isEmpty() ? 0 : vm.lastTickNanos / 1e6 / vm.all().size()), NamedTextColor.GRAY));
             }
             case "physics" -> {
