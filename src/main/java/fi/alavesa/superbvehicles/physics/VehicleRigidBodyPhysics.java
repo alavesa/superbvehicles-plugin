@@ -78,11 +78,14 @@ public final class VehicleRigidBodyPhysics {
         public float freeStep = 0.55f, fullStep = 1.05f;
         public float fullBlockClimbThreshold = 0.5f; // kinetic energy needed, as a share of m g h
         public float fullBlockClimbTraction = 0.3f;  // or drive force as a share of the weight
+        public float uphillGravity = 0.3f;           // share of the slope force that works against a climb on anything but a full-block ledge
         public float climbLoss = 0.25f;              // share of m g h lost on top of the work against gravity
         public float wheelRiseRate = 4f;             // m/s a wheel can rise at standstill (+2 per m/s of speed)
         public float restitutionLow = 0.3f, restitutionHigh = 0.1f;
         public float waterFactor = 0.4f;
         public boolean sixContacts;
+        /** Contact vertices from the model (blocks right / forward of the origin), FL FR RL RR and optionally two more; null = from halfTrack / halfBase. */
+        public float[] contactRight, contactForward;
 
         /** From a vehicle type: every key the classic controller reads, plus the rigid-body keys. */
         public static Params of(VehicleType t) {
@@ -115,6 +118,7 @@ public final class VehicleRigidBodyPhysics {
             p.fullBlockClimbThreshold = (float) Math.max(0, t.physics("full-block-climb-threshold", 0.5));
             p.fullBlockClimbTraction = (float) Math.max(0, t.physics("full-block-climb-traction", p.differential ? 0.2 : 0.3));
             p.climbLoss = (float) Math.max(0, t.physics("climb-loss", 0.25));
+            p.uphillGravity = (float) clamp01(t.physics("uphill-gravity", 0.3));
             p.restitutionLow = (float) clamp01(t.physics("bumper-restitution", 0.3)); p.restitutionHigh = (float) clamp01(t.physics("crash-restitution", 0.1));
             p.waterFactor = (float) o.waterFactor;
             return p;
@@ -157,13 +161,13 @@ public final class VehicleRigidBodyPhysics {
     public float wheelSpin;                          // degrees, accumulated
     public float distance;
 
-    private int contacts = 4, gateTicks;
+    private int contacts = 4, gateTicks, ledgeTicks;
     private final float[] lx = new float[6], lz = new float[6];   // contact vertices in the chassis frame (right, -forward)
     private final double[] ground = new double[6];                // support height under each wheel (NaN = none)
     private final float[] comp = new float[6];                    // spring travel beyond the static sag
     private final boolean[] contact = new boolean[6];
     private final float[] restOff = new float[6];                 // height of each rest point above the origin
-    private float alphaPartial;
+    private float alphaPartial, tiltStop;
     private final float[] px = new float[6], py = new float[6], pz = new float[6];   // contact points relative to the origin (world axes)
     private float kWheel, cWheel, sag, droop;
     private double prevMean = Double.NaN;
@@ -193,6 +197,10 @@ public final class VehicleRigidBodyPhysics {
         lx[FL] = -p.halfTrack; lz[FL] = -p.halfBase; lx[FR] = p.halfTrack; lz[FR] = -p.halfBase;
         lx[RL] = -p.halfTrack; lz[RL] = p.halfBase; lx[RR] = p.halfTrack; lz[RR] = p.halfBase;
         lx[4] = -p.halfTrack; lz[4] = 0; lx[5] = p.halfTrack; lz[5] = 0;
+        if (p.contactRight != null && p.contactForward != null && p.contactRight.length >= 4 && p.contactForward.length == p.contactRight.length) {
+            contacts = Math.min(6, p.contactRight.length) == 5 ? 4 : Math.min(6, p.contactRight.length);
+            for (int i = 0; i < contacts; i++) { lx[i] = p.contactRight[i]; lz[i] = -p.contactForward[i]; }
+        }
         float w = (float) (2 * Math.PI * p.suspensionFrequency);
         kWheel = p.mass * w * w / contacts;
         cWheel = 2 * p.suspensionDamping * p.mass * w / contacts;
@@ -202,6 +210,7 @@ public final class VehicleRigidBodyPhysics {
         invInertia.set(12f / (p.mass * (H * H + L * L)), 12f / (p.mass * (W * W + L * L)), 12f / (p.mass * (W * W + H * H)));
         // with an axle in the air the body can only rotate as fast as gravity turns it about the other axle
         alphaPartial = 1.2f * p.gravity * p.halfBase / ((H * H + L * L) / 12f + p.halfBase * p.halfBase);
+        tiltStop = (float) Math.cos(Math.toRadians(Math.min(80, p.maxTilt + 5)));
         if (Float.isNaN(p.dragArea)) {
             // top speed = max-speed: thrust at the end of the torque curve = drag + rolling resistance there
             float thrust = peakForce() * p.torqueCurve[p.torqueCurve.length - 1], roll = p.rollingResistance * p.mass * p.gravity;
@@ -229,7 +238,7 @@ public final class VehicleRigidBodyPhysics {
         velocity.zero(); angularVelocity.zero(); yawKick = 0; yawRate = 0;
         java.util.Arrays.fill(ground, Double.NaN);
         java.util.Arrays.fill(contact, false);
-        prevMean = Double.NaN; prevCount = 0; gateTicks = 0; spread = 0;
+        prevMean = Double.NaN; prevCount = 0; gateTicks = 0; ledgeTicks = 0; spread = 0;
         wheelsOnGround = 0; grounded = false;
     }
 
@@ -293,6 +302,9 @@ public final class VehicleRigidBodyPhysics {
         float drag = 0.5f * p.airDensity * p.dragArea * sp * sp * (inWater ? 25f : 1f);
         float rolling = p.rollingResistance * surfaceRolling * load;
         float aSlope = onGround ? -g * sinP : 0;                                             // gravity projected on the nose
+        // going up a ramp of slabs or stairs is a road, not a wall: only a full-block ledge is fought at full weight
+        float heading = Math.abs(vF) > 0.2f ? Math.signum(vF) : Math.signum(throttle);
+        if (aSlope * heading < 0 && ledgeTicks == 0) aSlope *= p.uphillGravity;
         driveForce = drive; dragForce = drag; rollingForce = rolling; brakeForce = brake; slopeAccel = aSlope;
         float v1 = vF + (drive / m + aSlope) * dt;
         float resist = ((brake + rolling) / m + (sp > 1e-3f ? drag / m * Math.abs(vF) / sp : 0)) * dt;
@@ -337,11 +349,13 @@ public final class VehicleRigidBodyPhysics {
         double hx = x + fx * p.hullForward + rx * p.hullRight, hz = z + fz * p.hullForward + rz * p.hullRight;
         if (dir != 0) {
             double look = dir * (Math.abs(v1) * cosP * dt * 2 + p.fullStep + 0.1);
-            solver.probeAhead(hx + fx * look, hz + fz * look, fx, fz, rx, rz, p.hullHalfWidth, p.hullHalfLength, bottom, slopeF, slopeR, p.hullHeight, p.freeStep, p.fullStep);
+            solver.probeAhead(hx, hz, hx + fx * look, hz + fz * look, fx, fz, rx, rz, p.hullHalfWidth, p.hullHalfLength, bottom, slopeF, slopeR, p.hullHeight, p.freeStep, p.fullStep);
             boolean pushing = drive * dir > 0;
             if (solver.aheadRise() > 0 && !solver.aheadCeiling()
-                && VoxelCollisionAndStepSolver.canClimbFullBlock(m, Math.abs(v1), pushing ? Math.abs(drive) : 0, solver.aheadRise(), g, p.fullBlockClimbThreshold, p.fullBlockClimbTraction)) gateTicks = 12;
+                && VoxelCollisionAndStepSolver.canClimbFullBlock(m, Math.abs(v1), pushing ? Math.abs(drive) : 0, solver.aheadRise(), g, p.fullBlockClimbThreshold, p.fullBlockClimbTraction)) { gateTicks = 12; ledgeTicks = 24; }
         }
+        if (ledgeTicks > 0) ledgeTicks--;
+        boolean ledge = ledgeTicks > 0;
         if (spread > p.freeStep * 0.9f && gateTicks < 4) gateTicks = 4;      // astride a ledge (up or down): finish it
         climbing = gateTicks > 0;
         if (gateTicks > 0) gateTicks--;
@@ -382,14 +396,16 @@ public final class VehicleRigidBodyPhysics {
             slopeF = f3.y / Math.max(0.2f, (float) Math.hypot(f3.x, f3.z)); slopeR = r3.y / Math.max(0.2f, (float) Math.hypot(r3.x, r3.z));
             double plane = y + p.hullBottom;
 
-            // a. horizontal move, axis by axis: block faces are axis-aligned, so a blocked axis IS the contact normal
+            // a. horizontal move, axis by axis: block faces are axis-aligned, so a blocked axis IS the contact normal.
+            //    A hull that is already inside something (a block was placed into it) is never held there: it may drive out.
+            boolean embedded = hullBlocked(x, z, plane, slopeF, slopeR, climbLimit);
             if (velocity.x != 0) {
                 double nx = x + velocity.x * h;
-                if (hullBlocked(nx, z, plane, slopeF, slopeR, climbLimit)) hit(velocity.x > 0 ? -1 : 1, 0); else x = nx;
+                if (!embedded && hullBlocked(nx, z, plane, slopeF, slopeR, climbLimit)) hit(velocity.x > 0 ? -1 : 1, 0); else x = nx;
             }
             if (velocity.z != 0) {
                 double nz = z + velocity.z * h;
-                if (hullBlocked(x, nz, plane, slopeF, slopeR, climbLimit)) hit(0, velocity.z > 0 ? -1 : 1); else z = nz;
+                if (!embedded && hullBlocked(x, nz, plane, slopeF, slopeR, climbLimit)) hit(0, velocity.z > 0 ? -1 : 1); else z = nz;
             }
 
             // b. contact vertices to the world, a ray down from each, spring and damper
@@ -413,7 +429,7 @@ public final class VehicleRigidBodyPhysics {
                     float fmax = 3 * m * g / contacts;
                     f = f < 0 ? 0 : f > fmax ? fmax : f;
                     // a wheel forced up a ledge: what the spring takes in beyond the static load is paid by the forward motion
-                    if (climbing && !Double.isNaN(ground[i]) && raw > ground[i] && f > m * g / contacts) work += 0.5f * (f - m * g / contacts) * (float) (raw - ground[i]);
+                    if (ledge && !Double.isNaN(ground[i]) && raw > ground[i] && f > m * g / contacts) work += 0.5f * (f - m * g / contacts) * (float) (raw - ground[i]);
                     fsum += f; c++;
                     VoxelCollisionAndStepSolver.Surface sf = solver.supportSurface();
                     gripSum += sf.grip; rollSum += sf.rolling;
@@ -453,7 +469,7 @@ public final class VehicleRigidBodyPhysics {
             }
             if (c > 0 && c == prevCount && !Double.isNaN(prevMean)) {
                 double rise = sum / c - prevMean;
-                if (rise > 0 && spread > p.freeStep) {
+                if (rise > 0 && ledge) {
                     float v2 = velocity.x * velocity.x + velocity.z * velocity.z, lost = 2 * p.climbLoss * g * (float) rise;
                     if (v2 > 1e-6f) { float k = (float) Math.sqrt(Math.max(0, v2 - lost) / v2); velocity.x *= k; velocity.z *= k; }
                 }
@@ -490,7 +506,11 @@ public final class VehicleRigidBodyPhysics {
             if (wl > 1e-6f) {
                 if (wl > 12f) { angularVelocity.mul(12f / wl); wl = 12f; }
                 qTmp.setAngleAxis(wl * h, angularVelocity.x / wl, angularVelocity.y / wl, angularVelocity.z / wl);
+                qStep.set(orientation);
                 orientation.premul(qTmp).normalize();
+                // never onto its side or roof: a turn that would take the body further past the tilt limit is not made
+                orientation.transform(0, 1, 0, tmp);
+                if (tmp.y < tiltStop && tmp.y < n3.y) { orientation.set(qStep); angularVelocity.zero(); }
                 // the body turns about the wheels that carry it, not about its middle: keep their rest points where they were
                 if (c > 0) {
                     xf.rotation(orientation);

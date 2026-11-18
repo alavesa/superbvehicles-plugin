@@ -10,7 +10,7 @@ import java.util.Locale;
 public enum BoneRole {
     ROOT("root"), BODY("body"), TURRET("turret"), GUN("gun", "barrel"), WHEEL("wheel_"), TRACK_L("track_l"), TRACK_R("track_r"),
     ROTOR_MAIN("rotor_main"), ROTOR_TAIL("rotor_tail"), PROPELLER("propeller", "prop_"), GEAR("gear_"), FLAP("flap_"),
-    AILERON("aileron_"), ELEVATOR("elevator"), RUDDER("rudder"), SEAT("seat_"), MUZZLE("muzzle_"), HITBOX("hitbox_"),
+    AILERON("aileron_"), ELEVATOR("elevator"), RUDDER("rudder"), SEAT("seat_"), MUZZLE("muzzle_"), HITBOX("hitbox_"), VERTEX("vertex_", "contact_"),
     EXHAUST("exhaust"), DAMAGE1("dmg1_", "damage1_"), DAMAGE2("dmg2_", "damage2_"), WRECK("wreck_"), INTACT("intact_"),
     STEER("steer"), DOOR("door_"), LIGHT("light_"), NONE();
 
@@ -30,7 +30,7 @@ public enum BoneRole {
     }
 
     /** Roles that mark a bone as moving on its own (so it needs its own display part). */
-    public boolean animatable() { return this != NONE && this != SEAT && this != MUZZLE && this != HITBOX && this != EXHAUST && this != ROOT && this != BODY
+    public boolean animatable() { return this != NONE && this != SEAT && this != MUZZLE && this != HITBOX && this != VERTEX && this != EXHAUST && this != ROOT && this != BODY
         && this != WHEEL && this != TRACK_L && this != TRACK_R && this != STEER; }   // 0.3.0: wheels/tracks are animated by the model's own clips
 
     /** A wheel bone that steers: wheel_f*, wheel_front*, wheel_steer*. */

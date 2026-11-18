@@ -82,6 +82,8 @@ public final class Vehicle {
     private Rig boundRig;
     public double[] hitboxHalfPx = {16, 16, 16}, hitboxCenterPx = {0, 16, 0};
     public final Map<String, double[]> wheelLocators = new LinkedHashMap<>();   // name -> rest px
+    /** Ground contact points drawn into the model: bones or locators named vertex_* / contact_* (name -> rest px, bottom centre). */
+    public final Map<String, double[]> contactVertices = new LinkedHashMap<>();
     public int soundTick, lastHudTick;
     /** Last server tick this vehicle was in the air (simple helicopters: a sneak held since then does not dismount). */
     public int lastAirborneTick = Integer.MIN_VALUE / 2;
@@ -125,6 +127,7 @@ public final class Vehicle {
         Rig rig = rig();
         boundRig = rig;
         wheelLocators.clear();
+        contactVertices.clear();
         if (type.hitboxSize != null) {
             hitboxHalfPx = new double[]{type.hitboxSize[0] * 8, type.hitboxSize[1] * 8, type.hitboxSize[2] * 8};
             hitboxCenterPx = new double[]{type.hitboxOffset[0] * 16, type.hitboxOffset[1] * 16 + hitboxHalfPx[1], type.hitboxOffset[2] * 16};
@@ -143,6 +146,17 @@ public final class Vehicle {
             Map<String, double[][]> cache = new HashMap<>();
             for (BbModel.Locator l : rig.model.locators.values()) if (BoneRole.of(l.name) == BoneRole.WHEEL) wheelLocators.put(l.name.toLowerCase(Locale.ROOT), rig.locatorPosition(l, null, cache));
             if (wheelLocators.isEmpty()) for (BbModel.Bone b : rig.model.bones.values()) if (BoneRole.of(b.name) == BoneRole.WHEEL) wheelLocators.put(b.name.toLowerCase(Locale.ROOT), rig.bonePivot(b, null, cache));
+        }
+        if (rig != null) {
+            Map<String, double[][]> cache = new HashMap<>();
+            for (BbModel.Bone b : rig.model.bones.values()) {
+                if (BoneRole.of(b.name) != BoneRole.VERTEX) continue;
+                if (b.cubes.isEmpty()) { contactVertices.put(b.name.toLowerCase(Locale.ROOT), rig.bonePivot(b, null, cache)); continue; }
+                double[] mn = {1e9, 1e9, 1e9}, mx = {-1e9, -1e9, -1e9};
+                for (BbModel.Cube c : b.cubes) for (int i = 0; i < 3; i++) { mn[i] = Math.min(mn[i], Math.min(c.from[i], c.to[i])); mx[i] = Math.max(mx[i], Math.max(c.from[i], c.to[i])); }
+                contactVertices.put(b.name.toLowerCase(Locale.ROOT), new double[]{(mn[0] + mx[0]) / 2, mn[1], (mn[2] + mx[2]) / 2});   // the bottom centre of the marker cube
+            }
+            for (BbModel.Locator l : rig.model.locators.values()) if (BoneRole.of(l.name) == BoneRole.VERTEX) contactVertices.put(l.name.toLowerCase(Locale.ROOT), rig.locatorPosition(l, null, cache));
         }
         anim.bind(rig == null ? null : rig.model);
         physics.rigBound();

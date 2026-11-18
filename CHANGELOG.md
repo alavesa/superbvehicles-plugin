@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.8.1 - 2026-11-18
+
+Not verified on a real client yet.
+
+### Fixed
+- **Stuck on slab ramps, stairs and other slanted builds.** The body was tested against the blocks as a flat box, so
+  the second and third step of a ramp counted as a wall before the front wheels had lifted the nose, and a long
+  vehicle could hang on the crest. A block now counts as an obstacle only by how far it rises above the step in front
+  of it: a ramp of slabs or stairs is a row of small steps however high it goes, a wall is still a wall.
+- **Ramps were as hard as real 50% grades.** A slab per block is a 27 degree slope; at full weight most vehicles could
+  not climb it at all. Going up anything but a full-block ledge now works against 30% of the slope force
+  (`uphill-gravity` per vehicle; 1.0 = real). Downhill is unchanged. Full blocks are still the hard ones: they need
+  speed or a strong engine and cost speed.
+- A vehicle that is already inside a block (one was placed into it) can always drive out.
+- The body can no longer be turned onto its side in the air.
+
+### Added
+- **Contact points in the model.** Bones (with a small marker cube or just a pivot) or locators named `vertex_*` or
+  `contact_*` are where the vehicle touches the ground: one in each corner, optionally two more in the middle. They
+  are not drawn. Without them the wheel bones are used as before. The hitbox comes from `hitbox_*` bones as before.
+
+### Tests
+- 306 combinations of heading (every 7.5 degrees), entry speed, ramp pitch and vehicle (car, 8-block truck) must all
+  reach the top; weaving up a ramp; stairs; crawling at 30% throttle.
+
 ## 0.8.0 - 2026-11-18
 
 Not verified on a real client yet: how the new driving looks and feels, the exit positions, the prompts.

@@ -129,7 +129,7 @@ class RigidBodyPhysicsTest {
         TestVoxels hillUp = slabHill(false, 3, 40);
         VehicleRigidBodyPhysics up = rolling(hillUp, 8);
         drive(up, hillUp, 60, 0);
-        assertTrue(up.speed < flat.speed - 1, "coasting uphill bleeds speed: " + up.speed + " vs flat " + flat.speed);
+        assertTrue(up.speed < flat.speed - 0.4f, "coasting uphill bleeds speed: " + up.speed + " vs flat " + flat.speed);
     }
 
     @Test void slabIsRolledOverWithoutLosingSpeed() {

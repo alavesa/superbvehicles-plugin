@@ -72,7 +72,7 @@ public final class CompositeBuilder {
         int hiddenBb = 0, hiddenByGroup = 0, folded = 0, scaledAway = 0;
         for (BbModel.Cube c : m.cubes.values()) {
             boolean hitboxBone = false;
-            for (BbModel.Bone w = c.bone; w != null; w = w.parent) if (roles.getOrDefault(w, BoneRole.NONE) == BoneRole.HITBOX) hitboxBone = true;
+            for (BbModel.Bone w = c.bone; w != null; w = w.parent) if (roles.getOrDefault(w, BoneRole.NONE) == BoneRole.HITBOX || roles.getOrDefault(w, BoneRole.NONE) == BoneRole.VERTEX) hitboxBone = true;
             if (hitboxBone) continue;
             if (c.hidden && !keepHidden) { hiddenBb++; continue; }
             boolean skip = false;

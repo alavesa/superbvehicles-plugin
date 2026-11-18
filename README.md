@@ -182,6 +182,7 @@ vehicle). Every old physics key still works. New vehicle keys, all optional:
 | `com-height`, `com-forward`, `com-right` | 0.6, 0, 0 | centre of mass: lean under braking / cornering, spin in a crash |
 | `suspension-frequency`, `suspension-damping` | 2.2 Hz, 0.7 | spring stiffness and damping ratio |
 | `suspension-travel`, `suspension-droop` | 0.25, 0.3 | blocks up to the bump stop / down to full extension |
+| `uphill-gravity` | 0.3 | share of the slope force that works against climbing ramps (1.0 = real; full-block ledges always 1.0) |
 | `free-step` | 0.55 | rolled over freely |
 | `step-height` | 1.05 | highest ledge that can be climbed at all |
 | `full-block-climb-threshold` | 0.5 | kinetic energy needed for a ledge above `free-step`, as a share of m g h |
@@ -189,6 +190,12 @@ vehicle). Every old physics key still works. New vehicle keys, all optional:
 | `climb-loss` | 0.25 | extra speed cost of such a climb, as a share of m g h |
 | `bumper-restitution`, `crash-restitution` | 0.3, 0.1 | bounce at parking speed / in a crash |
 | `half-track`, `half-base`, `six-contacts` | from the wheel bones | contact points |
+
+**Contact points and hitbox in the model.** Add bones or locators named `vertex_fl`, `vertex_fr`, `vertex_rl`,
+`vertex_rr` (any `vertex_*` / `contact_*` name; the position decides the corner) where the vehicle should touch the
+ground, plus two more near the middle for long vehicles. A bone can hold a small marker cube: its bottom centre is the
+point, and it is never drawn. The collision box comes from the cubes of `hitbox_*` bones (also never drawn), or from
+`hitbox:` in the YAML.
 
 `/sbv debug physics` prints forces, wheels on the ground, grip, pitch / roll and the last obstacle every tick.
 

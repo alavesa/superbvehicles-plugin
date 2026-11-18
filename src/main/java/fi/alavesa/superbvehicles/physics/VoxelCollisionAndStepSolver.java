@@ -165,19 +165,50 @@ public final class VoxelCollisionAndStepSolver {
             double lf = dx * fx + dz * fz, lr = dx * rx + dz * rz;
             if (Math.abs(lf) >= hl + hbx * Math.abs(fx) + hbz * Math.abs(fz) - EPS) continue;
             if (Math.abs(lr) >= hw + hbx * Math.abs(rx) + hbz * Math.abs(rz) - EPS) continue;
-            // the plane where the box meets the hull
-            double cf = lf < -hl ? -hl : lf > hl ? hl : lf, cr = lr < -hw ? -hw : lr > hw ? hw : lr;
+            // the plane where the box comes closest to the hull centre (not at the box's own centre: boxes can be long)
+            double nx = (cx < b.minX(i) ? b.minX(i) : cx > b.maxX(i) ? b.maxX(i) : cx) - cx, nz = (cz < b.minZ(i) ? b.minZ(i) : cz > b.maxZ(i) ? b.maxZ(i) : cz) - cz;
+            double nf = nx * fx + nz * fz, nr = nx * rx + nz * rz;
+            double cf = nf < -hl ? -hl : nf > hl ? hl : nf, cr = nr < -hw ? -hw : nr > hw ? hw : nr;
             double plane = planeY + cf * slopeF + cr * slopeR;
             double top = b.maxY(i), bottom = b.minY(i);
             if (top <= plane + climbLimit + EPS || bottom >= plane + height - EPS) continue;
-            hitX = cx + fx * cf + rx * cr; hitZ = cz + fz * cf + rz * cr;
+            boolean ceiling = bottom > plane + fullStep;
+            double rise = ceiling ? top - plane : riseOf(i, cx, cz, plane);
+            if (rise <= climbLimit + EPS) continue;          // one more step of a ramp: the wheels take it
+            // contact point for the lever arm: toward the middle of the box, held inside the hull
+            double hf = lf < -hl ? -hl : lf > hl ? hl : lf, hr = lr < -hw ? -hw : lr > hw ? hw : lr;
+            hitX = cx + fx * hf + rx * hr; hitZ = cz + fz * hf + rz * hr;
             hitY = Math.max(bottom, plane) * 0.5 + Math.min(top, plane + height) * 0.5;
-            hitRise = top - plane;
-            hitKind = bottom > plane + fullStep ? Obstacle.CEILING : classify(hitRise, freeStep, fullStep);
+            hitRise = rise;
+            hitKind = ceiling ? Obstacle.CEILING : classify(hitRise, freeStep, fullStep);
             return true;
         }
         hitKind = Obstacle.NONE;
         return false;
+    }
+
+    /**
+     * How high box i stands above what a wheel would come from: the ground right in front of the box on the vehicle's
+     * side (the step below it on a staircase), or the chassis plane when that is higher. A slab ramp or a flight of
+     * stairs is a row of small rises however far it climbs above the chassis; a wall is one big rise.
+     */
+    private double riseOf(int i, double cx, double cz, double plane) {
+        BoxBuffer b = boxes;
+        double top = b.maxY(i);
+        double qx = cx < b.minX(i) ? b.minX(i) : cx > b.maxX(i) ? b.maxX(i) : cx, qz = cz < b.minZ(i) ? b.minZ(i) : cz > b.maxZ(i) ? b.maxZ(i) : cz;
+        double dx = cx - qx, dz = cz - qz, d = Math.sqrt(dx * dx + dz * dz);
+        if (d < 1e-6) return top - plane;                 // the hull centre is over the box
+        double s = Math.min(0.35, d);
+        qx += dx / d * s; qz += dz / d * s;
+        double base = plane;
+        for (int j = 0, n = b.size(); j < n; j++) {
+            double t = b.maxY(j);
+            if (j == i || t <= base) continue;
+            if (qx < b.minX(j) - EPS || qx > b.maxX(j) + EPS || qz < b.minZ(j) - EPS || qz > b.maxZ(j) + EPS) continue;
+            if (t >= top - EPS) { if (b.minY(j) < top) return 0; continue; }   // the vehicle's side is as high or higher: a step down, not an obstacle
+            base = t;
+        }
+        return top - base;
     }
 
     /** Sub-block (slab, stair step, snow, trapdoor), full block, or wall. */
@@ -199,12 +230,12 @@ public final class VoxelCollisionAndStepSolver {
     }
 
     /**
-     * Look at the hull's footprint moved to (cx, cz), the place it is heading for: {@link #aheadRise} is the highest
+     * Look at the hull's footprint moved from (fromX, fromZ) to (cx, cz), the place it is heading for: {@link #aheadRise} is the highest
      * full-block-class ledge there (0 when none) and {@link #aheadCeiling} tells whether the body, lifted by that
      * ledge, would be pressed into something above it (a box that starts above the full step and below the lifted
      * roof).
      */
-    public void probeAhead(double cx, double cz, double fx, double fz, double rx, double rz, double hw, double hl,
+    public void probeAhead(double fromX, double fromZ, double cx, double cz, double fx, double fz, double rx, double rz, double hw, double hl,
                            double planeY, double slopeF, double slopeR, double height, double freeStep, double fullStep) {
         double ex = Math.abs(rx) * hw + Math.abs(fx) * hl, ez = Math.abs(rz) * hw + Math.abs(fz) * hl;
         double rise = 0, lowestRoof = Double.MAX_VALUE;
@@ -217,11 +248,16 @@ public final class VoxelCollisionAndStepSolver {
             double lf = dx * fx + dz * fz, lr = dx * rx + dz * rz;
             if (Math.abs(lf) >= hl + hbx * Math.abs(fx) + hbz * Math.abs(fz) - EPS) continue;
             if (Math.abs(lr) >= hw + hbx * Math.abs(rx) + hbz * Math.abs(rz) - EPS) continue;
-            double cf = lf < -hl ? -hl : lf > hl ? hl : lf, cr = lr < -hw ? -hw : lr > hw ? hw : lr;
+            // the plane where the box comes closest to the hull centre (not at the box's own centre: boxes can be long)
+            double nx = (cx < b.minX(i) ? b.minX(i) : cx > b.maxX(i) ? b.maxX(i) : cx) - cx, nz = (cz < b.minZ(i) ? b.minZ(i) : cz > b.maxZ(i) ? b.maxZ(i) : cz) - cz;
+            double nf = nx * fx + nz * fz, nr = nx * rx + nz * rz;
+            double cf = nf < -hl ? -hl : nf > hl ? hl : nf, cr = nr < -hw ? -hw : nr > hw ? hw : nr;
             double plane = planeY + cf * slopeF + cr * slopeR;
             double top = b.maxY(i) - plane, bottom = b.minY(i) - plane;
             if (bottom > fullStep + EPS) { if (bottom < lowestRoof) lowestRoof = bottom; continue; }
-            if (top > freeStep + EPS && top <= fullStep + EPS && top > rise) rise = top;
+            if (top <= freeStep + EPS) continue;
+            double step = riseOf(i, fromX, fromZ, plane);        // seen from where the vehicle is now
+            if (step > freeStep + EPS && step <= fullStep + EPS && step > rise) rise = step;
         }
         aheadRise = rise;
         aheadCeiling = rise > 0 && lowestRoof < height + rise - EPS;

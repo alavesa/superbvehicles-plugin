@@ -70,6 +70,21 @@ public class WheeledPhysics extends VehiclePhysics {
         r.halfBase = (float) t.physics("half-base", base > 0.3 ? Math.min(base, r.hullHalfLength) : r.hullHalfLength * 0.8);
         r.wheelbase = (float) p.wheelbase; r.wheelRadius = (float) p.wheelRadius;
         r.sixContacts = t.physicsFlag("six-contacts", r.differential || r.halfBase > 1.8f);
+        r.contactRight = null; r.contactForward = null;
+        if (v.contactVertices.size() >= 4) {
+            // vertices drawn into the model: bones / locators named vertex_* or contact_*
+            int n = v.contactVertices.size(), i = 0;
+            double[] right = new double[n], fwd = new double[n];
+            double low = Double.MAX_VALUE;
+            for (double[] w : v.contactVertices.values()) { right[i] = (w[0] * ca + w[2] * sa) * k; fwd[i] = -(-w[0] * sa + w[2] * ca) * k; low = Math.min(low, w[1] * k); i++; }
+            float[][] picked = pickContacts(right, fwd);
+            if (picked != null) {
+                r.contactRight = picked[0]; r.contactForward = picked[1];
+                r.hullBottom = (float) low;                                  // the vertices ARE where the vehicle touches the ground
+                r.hullHeight = (float) Math.max(0.5, (c[1] + h[1]) * k - low);
+                r.halfTrack = Math.max(Math.abs(picked[0][0]), Math.abs(picked[0][1])); r.halfBase = Math.max(Math.abs(picked[1][0]), Math.abs(picked[1][2]));
+            } else plugin.getLogger().warning(t.id + ": the model's vertex_* points do not surround the vehicle (need one in each corner: front-left, front-right, rear-left, rear-right) - using the wheel bones / hitbox instead");
+        }
         r.dragArea = (float) t.physics("drag-area", Double.NaN);
         rigid.configure();
         placed = false;
@@ -97,6 +112,39 @@ public class WheeledPhysics extends VehiclePhysics {
         double a = Math.abs(s.speed);
         if (s.onGround && a > 4 && v.age % 3 == 0) dust(col);
         if (s.inWater && a > 2 && v.age % 5 == 0) v.world.spawnParticle(Particle.SPLASH, v.pose.x, v.pose.y + 0.2, v.pose.z, 8, 0.6, 0.1, 0.6, 0);
+    }
+
+    /**
+     * Order model-defined contact points for the physics: the outermost point of each corner (front-left, front-right,
+     * rear-left, rear-right, relative to their centre), then - when there are six or more - the left and right points
+     * nearest the middle. Null when a corner has no point. Returns {right[], forward[]} in blocks.
+     */
+    public static float[][] pickContacts(double[] right, double[] fwd) {
+        int n = right.length;
+        double cr = 0, cf = 0;
+        for (int i = 0; i < n; i++) { cr += right[i] / n; cf += fwd[i] / n; }
+        int[] corner = {-1, -1, -1, -1};
+        for (int q = 0; q < 4; q++) {
+            int sr = q % 2 == 0 ? -1 : 1, sf = q < 2 ? 1 : -1;       // FL, FR, RL, RR
+            double best = 1e-6;
+            for (int i = 0; i < n; i++) {
+                double dr = (right[i] - cr) * sr, df = (fwd[i] - cf) * sf;
+                if (dr <= 0 || df <= 0) continue;
+                if (dr + df > best) { best = dr + df; corner[q] = i; }
+            }
+            if (corner[q] < 0) return null;
+        }
+        int midL = -1, midR = -1;
+        if (n >= 6) for (int i = 0; i < n; i++) {
+            if (i == corner[0] || i == corner[1] || i == corner[2] || i == corner[3]) continue;
+            if (right[i] < cr) { if (midL < 0 || Math.abs(fwd[i] - cf) < Math.abs(fwd[midL] - cf)) midL = i; }
+            else if (midR < 0 || Math.abs(fwd[i] - cf) < Math.abs(fwd[midR] - cf)) midR = i;
+        }
+        boolean six = midL >= 0 && midR >= 0;
+        float[][] out = new float[2][six ? 6 : 4];
+        for (int q = 0; q < 4; q++) { out[0][q] = (float) right[corner[q]]; out[1][q] = (float) fwd[corner[q]]; }
+        if (six) { out[0][4] = (float) right[midL]; out[1][4] = (float) fwd[midL]; out[0][5] = (float) right[midR]; out[1][5] = (float) fwd[midR]; }
+        return out;
     }
 
     /** One tick of the rigid-body model: input in, pose and shared state out, then the same side effects as the classic path. */
